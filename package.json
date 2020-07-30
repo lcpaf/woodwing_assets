@@ -1,0 +1,53 @@
+{
+    "name": "woodwing_assets",
+    "version": "1.0.0",
+    "description": "Tools to connect to a WoodWing Assets Server API",
+    "main": "lib/index.js",
+    "types": "lib/index.d.ts",
+    "scripts": {
+        "test": "jest --config jestconfig.json",
+        "build": "tsc",
+        "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
+        "lint": "tslint -p tsconfig.json",
+        "prepare": "npm run build",
+        "prepublishOnly": "npm test && npm run lint",
+        "preversion": "npm run lint",
+        "version": "npm run format && git add -A src",
+        "postversion": "git push && git push --tags"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/lcpaf/woodwing_assets.git"
+    },
+    "keywords": [
+        "ProPublish",
+        "WoodWing",
+        "Elvis",
+        "DAM",
+        "Assets"
+    ],
+    "author": "Luis Ferreira",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/lcpaf/woodwing_assets/issues"
+    },
+    "homepage": "https://github.com/lcpaf/woodwing_assets#readme",
+    "devDependencies": {
+        "@types/jest": "^26.0.7",
+        "jest": "^26.2.1",
+        "prettier": "^2.0.5",
+        "ts-jest": "^26.1.4",
+        "tslint": "^6.1.2",
+        "tslint-config-prettier": "^1.18.0",
+        "typescript": "^3.9.7"
+    },
+    "files": [
+        "lib/**/*"
+    ],
+    "dependencies": {
+        "@types/bluebird": "^3.5.32",
+        "@types/request": "^2.48.5",
+        "bluebird": "^3.7.2",
+        "request": "^2.88.2"
+    }
+}

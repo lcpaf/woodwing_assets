@@ -1,0 +1,20 @@
+import {AssetsServer} from '../AssetsServer';
+
+let assetsServer = new AssetsServer({
+    downloadUrlFilenameSeparator: "/*/",
+    password: 'ww',
+    rejectUnauthorized: false,
+    serverUrl: "http://172.16.238.106:9090",
+    username: 'api'
+})
+
+test('Assets Search', () => {
+
+    assetsServer.get('/services/search',{
+        q: '*'
+    }).then(function (result:any) {
+        expect(result.maxResultHits).toBe(50);
+    }).catch(function (err) {
+        fail(err);
+    })
+});
