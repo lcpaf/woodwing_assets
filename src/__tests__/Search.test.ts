@@ -4,7 +4,7 @@ let assetsServer = new AssetsServer({
     downloadUrlFilenameSeparator: "/*/",
     password: 'ww',
     rejectUnauthorized: false,
-    serverUrl: "http://172.16.238.106:9090",
+    serverUrl: "http://localhost:9090",
     username: 'api'
 })
 
