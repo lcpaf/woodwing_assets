@@ -14,7 +14,7 @@ export class AssetsServer {
     }
 
     public authenticate() {
-        let _this = this;
+        const _this = this;
 
         return new Promise((resolve, reject) => {
             _this.callSecondary('/services/apilogin', 'POST', {
@@ -41,16 +41,16 @@ export class AssetsServer {
     public delete = (service: string, form: object = {}) => this.call(service, 'DELETE', form);
 
     private call(service: string, method: string, form: object = {}) {
-        let _this = this;
+        const _this = this;
 
         return new Promise((resolve: any, reject: any) => {
             _this.callSecondary(service, method, form).then((result: any) => {
-                if (result.errorcode == 401) { // Unauthorized
+                if (result.errorcode === 401) { // Unauthorized
 
                     return _this.authenticate().then((data) => {
                         return _this.callSecondary(service, method, form);
-                    }).then((result: any) => {
-                        resolve(result);
+                    }).then((authResult: any) => {
+                        resolve(authResult);
                     }).catch((err: Error) => {
                         reject(err);
                     });
@@ -64,18 +64,18 @@ export class AssetsServer {
     }
 
     private callSecondary(service: string, method: string, form: object = {}) {
-        let _this = this;
+        const _this = this;
         return new Promise((resolve: any, reject: any) => {
 
-            let options = {
-                method: method,
+            const options = {
+                method,
                 rejectUnauthorized: _this.config.rejectUnauthorized,
                 url: _this.config.serverUrl + service,
                 qs: {},
                 formData: {},
                 jar: true,
                 auth: {
-                    bearer: (_this.authToken !== '') ? <string>_this.authToken : 'something_random' //do not send a empty string, so the "Unauthorized" is not received. 400 is received instead
+                    bearer: (_this.authToken !== '') ? _this.authToken as string : 'something_random' // do not send a empty string, so the "Unauthorized" is not received. 400 is received instead
                 }
             };
 
@@ -102,7 +102,7 @@ export class AssetsServer {
                     response.statusMessage = body.message;
                 }
 
-                if (response.statusCode == 401) {
+                if (response.statusCode === 401) {
                     return resolve(body);
                 } else if ((response.statusCode < 200 || response.statusCode > 299) && (response.statusCode !== 302)) {
                     return reject(body);
@@ -115,7 +115,7 @@ export class AssetsServer {
 
     private static parseBody(result: any) {
         try {
-            let body = (result.body) ? result.body : result;
+            const body = (result.body) ? result.body : result;
             return (typeof body === 'string') ? JSON.parse(body) : body;
         } catch (e) {
             return result;
