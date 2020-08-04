@@ -36,15 +36,15 @@ export class AssetsServer {
         returnHighlightedText: boolean = true
     ) => {
         return this.get('/services/search', {
-            q: q,
-            start: start,
-            num: num,
-            sort: sort,
-            metadataToReturn: metadataToReturn,
-            facets: facets,
-            format: format,
-            appendRequestSecret: appendRequestSecret,
-            returnHighlightedText: returnHighlightedText,
+            q,
+            start,
+            num,
+            sort,
+            metadataToReturn,
+            facets,
+            format,
+            appendRequestSecret,
+            returnHighlightedText
         })
     };
 
@@ -58,13 +58,13 @@ export class AssetsServer {
         async: boolean = false
     ) => {
         return this.post('services/move', {
-            source: source,
-            target: target,
-            folderReplacePolicy: folderReplacePolicy,
-            fileReplacePolicy: fileReplacePolicy,
-            filterQuery: filterQuery,
-            flattenFolders: flattenFolders,
-            async: async
+            source,
+            target,
+            folderReplacePolicy,
+            fileReplacePolicy,
+            filterQuery,
+            flattenFolders,
+            async
         })
     };
 
