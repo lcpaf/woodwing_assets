@@ -2,11 +2,12 @@ import {AssetsConfig} from "./AssetsConfig";
 import {AssetsLogin} from "./AssetsLogin";
 import Promise = require("bluebird");
 import request = require('request');
+import {SearchResponse} from "./SearchResponse";
 
 export class AssetsServer {
 
     private readonly config: AssetsConfig;
-    private authToken: string | null;
+    private authToken: string | null = null;
 
     public readonly FOLDER_REPLACE_POLICY_AUTO_RENAME = 'AUTO_RENAME';
     public readonly FOLDER_REPLACE_POLICY_MERGE = 'MERGE';
@@ -21,7 +22,7 @@ export class AssetsServer {
 
     constructor(config: AssetsConfig) {
         this.config = config;
-        this.authToken = '';
+        this.authToken = null;
     }
 
     public search = (
@@ -30,11 +31,12 @@ export class AssetsServer {
         num: number = 50,
         sort: string = 'assetCreated-desc',
         metadataToReturn: string = 'all',
-        facets: string = '',
-        format: string = 'format',
-        appendRequestSecret: boolean = false,
-        returnHighlightedText: boolean = true
-    ) => {
+        facets: null | string = null,
+        format: string = 'json',
+        appendRequestSecret: string = 'false',
+        returnHighlightedText: string = 'true'
+    ): Promise<SearchResponse> => {
+        // @ts-ignore
         return this.get('/services/search', {
             q,
             start,
@@ -45,7 +47,7 @@ export class AssetsServer {
             format,
             appendRequestSecret,
             returnHighlightedText
-        })
+        });
     };
 
     public move = (
@@ -54,10 +56,10 @@ export class AssetsServer {
         folderReplacePolicy: string = this.FOLDER_REPLACE_POLICY_AUTO_RENAME,
         fileReplacePolicy: string = this.FILE_REPLACE_POLICY_AUTO_RENAME,
         filterQuery: string = '',
-        flattenFolders: boolean = false,
-        async: boolean = false
+        flattenFolders: string = 'false',
+        async: string = 'false'
     ) => {
-        return this.post('services/move', {
+        return this.post('/services/move', {
             source,
             target,
             folderReplacePolicy,
@@ -65,7 +67,23 @@ export class AssetsServer {
             filterQuery,
             flattenFolders,
             async
-        })
+        });
+    };
+
+    public update = (
+        id: string,
+        metadata: object,
+        metadataToReturn: string = 'all',
+        clearCheckoutState: string = 'true',
+        parseMetadataModifications: string = 'true',
+    ) => {
+        return this.post('/services/update', {
+            id,
+            metadata: JSON.stringify(metadata),
+            metadataToReturn,
+            clearCheckoutState,
+            parseMetadataModifications,
+        });
     };
 
     public get = (service: string, form: object = {}) => this.call(service, 'GET', form);
@@ -78,24 +96,37 @@ export class AssetsServer {
 
     private call(service: string, method: string, form: object = {}) {
         const _this = this;
-
         return new Promise((resolve: any, reject: any) => {
-            _this.callSecondary(service, method, form).then((result: any) => {
-                if (result.errorcode === 401) { // Unauthorized
 
-                    return _this.authenticate().then((data) => {
-                        return _this.callSecondary(service, method, form);
-                    }).then((authResult: any) => {
-                        resolve(authResult);
-                    }).catch((err: Error) => {
-                        reject(err);
-                    });
-                }
+            if (null === _this.authToken) {
 
-                return resolve(result);
-            }).catch((err: Error) => {
-                reject(err);
-            })
+                // first authenticate then call
+                return _this.authenticate().then((data) => {
+                    return _this.callSecondary(service, method, form);
+                }).then((authResult: any) => {
+                    resolve(authResult);
+                }).catch((err: Error) => {
+                    reject(err);
+                });
+            } else {
+
+                // first call then authenticate if an 401 is received
+                _this.callSecondary(service, method, form).then((result: any) => {
+                    if (result.errorcode === 401) { // Unauthorized
+                        return _this.authenticate().then((data) => {
+                            return _this.callSecondary(service, method, form);
+                        }).then((authResult: any) => {
+                            resolve(authResult);
+                        }).catch((err: Error) => {
+                            reject(err);
+                        });
+                    }
+
+                    return resolve(result);
+                }).catch((err: Error) => {
+                    reject(err);
+                })
+            }
         });
     }
 
