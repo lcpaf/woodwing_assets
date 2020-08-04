@@ -1,4 +1,4 @@
-import {AssetsServer} from '../AssetsServer';
+import {AssetsServer} from '../index';
 
 let assetsServer = new AssetsServer({
     downloadUrlFilenameSeparator: "/*/",
