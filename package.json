@@ -13,7 +13,8 @@
         "prepublishOnly": "npm test && npm run lint",
         "preversion": "npm run lint",
         "version": "npm run format && git add -A src",
-        "postversion": "git push && git push --tags"
+        "postversion": "git push && git push --tags",
+        "webhookTest": "$(npm bin)/ts-node src/__tests__/startServer.ts"
     },
     "repository": {
         "type": "git",
@@ -37,6 +38,7 @@
         "jest": "^26.2.1",
         "prettier": "^2.0.5",
         "ts-jest": "^26.1.4",
+        "ts-node": "^8.10.2",
         "tslint": "^6.1.2",
         "tslint-config-prettier": "^1.18.0",
         "typescript": "^3.9.7"
@@ -46,8 +48,13 @@
     ],
     "dependencies": {
         "@types/bluebird": "^3.5.32",
+        "@types/express": "^4.17.7",
         "@types/request": "^2.48.5",
         "bluebird": "^3.7.2",
-        "request": "^2.88.2"
+        "crypto": "^1.0.1",
+        "express": "^4.17.1",
+        "logging": "^3.2.0",
+        "request": "^2.88.2",
+        "secure-compare": "^3.0.1"
     }
 }
