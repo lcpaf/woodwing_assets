@@ -12,8 +12,8 @@ export class AssetsServer extends AssetsServerBase {
         metadataToReturn: string = 'all',
         facets: null | string = null,
         format: string = 'json',
-        appendRequestSecret: string = 'false',
-        returnHighlightedText: string = 'true'
+        appendRequestSecret: boolean = false,
+        returnHighlightedText: boolean = true
     ): Promise<SearchResponse> => {
         // @ts-ignore
         return this.get('/services/search', {
@@ -24,8 +24,8 @@ export class AssetsServer extends AssetsServerBase {
             metadataToReturn,
             facets,
             format,
-            appendRequestSecret,
-            returnHighlightedText
+            appendRequestSecret: appendRequestSecret.toString(),
+            returnHighlightedText: returnHighlightedText.toString(),
         });
     };
 
@@ -35,8 +35,8 @@ export class AssetsServer extends AssetsServerBase {
         folderReplacePolicy: string = this.FOLDER_REPLACE_POLICY_AUTO_RENAME,
         fileReplacePolicy: string = this.FILE_REPLACE_POLICY_AUTO_RENAME,
         filterQuery: string = '',
-        flattenFolders: string = 'false',
-        async: string = 'false'
+        flattenFolders: boolean = false,
+        async: boolean = false
     ) => {
         return this.post('/services/move', {
             source,
@@ -44,8 +44,8 @@ export class AssetsServer extends AssetsServerBase {
             folderReplacePolicy,
             fileReplacePolicy,
             filterQuery,
-            flattenFolders,
-            async
+            flattenFolders: flattenFolders.toString(),
+            async: async.toString()
         });
     };
 
@@ -53,15 +53,15 @@ export class AssetsServer extends AssetsServerBase {
         id: string,
         metadata: object,
         metadataToReturn: string = 'all',
-        clearCheckoutState: string = 'true',
-        parseMetadataModifications: string = 'true',
+        clearCheckoutState: boolean = true,
+        parseMetadataModifications: boolean = true,
     ) => {
         return this.post('/services/update', {
             id,
             metadata: JSON.stringify(metadata),
             metadataToReturn,
-            clearCheckoutState,
-            parseMetadataModifications,
+            clearCheckoutState: clearCheckoutState.toString(),
+            parseMetadataModifications: parseMetadataModifications.toString(),
         });
     };
 }
