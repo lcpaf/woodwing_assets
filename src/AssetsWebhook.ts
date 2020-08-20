@@ -6,9 +6,8 @@ import {NextFunction, Request, Response} from "express";
 import compare = require('safe-compare');
 import crypto = require('crypto');
 
-import createLogger = require('logger');
-
-const logger = createLogger.createLogger();
+// import createLogger = require('logger');
+// const logger = createLogger.createLogger();
 
 type WebhookSuccessHandler =
     (request: object) => void
@@ -71,7 +70,7 @@ export class AssetsWebhook {
                 try {
                     return successHandler(JSON.parse(data.toString()));
                 } catch (error) {
-                    logger.error(error);
+                    // logger.error(error);
                     return errorHandler(error);
                 }
             });
@@ -81,7 +80,7 @@ export class AssetsWebhook {
             });
 
         });
-        logger.info('Listening for webhook connections on port ' + this.config.port);
+        // logger.info('Listening for webhook connections on port ' + this.config.port);
     }
 
     private validateSignature = (signature: string, data: any) => {
