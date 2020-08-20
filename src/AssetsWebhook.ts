@@ -3,19 +3,18 @@ import {WebhookConfig} from "./WebhookConfig";
 import express = require('express');
 import {NextFunction, Request, Response} from "express";
 
-const compare = require('secure-compare');
-const crypto = require('crypto');
+import compare = require('safe-compare');
+import crypto = require('crypto');
 
-const createLogger = require('logging');
-const logger = createLogger.default('woodwing_assets_webhook');
+import createLogger = require('logger');
 
-interface WebhookSuccessHandler {
-    (request: object): void
-}
+const logger = createLogger.createLogger();
 
-interface WebhookErrorHandler {
-    (error: string): void
-}
+type WebhookSuccessHandler =
+    (request: object) => void
+
+type WebhookErrorHandler =
+    (error: string) => void
 
 export class AssetsWebhook {
     public readonly ASSET_CHECKIN = 'asset_checkin';
@@ -45,9 +44,9 @@ export class AssetsWebhook {
 
     public listen = (successHandler: WebhookSuccessHandler, errorHandler: WebhookErrorHandler) => {
 
-        let _this = this;
+        const _this = this;
 
-        let server = express();
+        const server = express();
         server.listen(this.config.port)
         server.post('/', (req: Request, res: Response, next: NextFunction) => {
 
@@ -55,8 +54,8 @@ export class AssetsWebhook {
             res.status(200);
             res.end();
 
-            let signature = req.header('x-hook-signature'),
-                chunks: any = [];
+            const signature: string = req.header('x-hook-signature') ?? '';
+            const chunks: any = [];
 
             req.on('data', chunk => {
                 chunks.push(chunk)
@@ -85,10 +84,10 @@ export class AssetsWebhook {
         logger.info('Listening for webhook connections on port ' + this.config.port);
     }
 
-    private validateSignature = (signature: string | undefined, data: any) => {
-        let hmac = crypto.createHmac('sha256', this.config.secretToken);
+    private validateSignature = (signature: string, data: any) => {
+        const hmac = crypto.createHmac('sha256', this.config.secretToken);
         hmac.update(data);
-        let digest = hmac.digest('hex');
+        const digest = hmac.digest('hex');
         return compare(digest, signature);
     };
 }
