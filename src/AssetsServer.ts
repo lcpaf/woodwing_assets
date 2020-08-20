@@ -1,6 +1,7 @@
 import Promise = require("bluebird");
 import {SearchResponse} from "./SearchResponse";
 import {AssetsServerBase} from "./AssetsServerBase";
+import {ReadStream} from 'fs';
 
 export class AssetsServer extends AssetsServerBase {
 
@@ -64,4 +65,23 @@ export class AssetsServer extends AssetsServerBase {
             parseMetadataModifications: parseMetadataModifications.toString(),
         });
     };
+
+    public create = (
+        Filedata: ReadStream,
+        metadata: object,
+        metadataToReturn: string = 'all'
+    ) => {
+        return this.post('/services/create', {
+            Filedata,
+            metadata: JSON.stringify(metadata),
+            metadataToReturn
+        });
+    };
+
+    public download = (
+        assetId: string,
+        assetName: string | null = null
+    ) => {
+        return this.get('/file/' + assetId + '/*/' + (assetName ?? assetId) + '?_=1&v=1&forceDownload=true')
+    }
 }
