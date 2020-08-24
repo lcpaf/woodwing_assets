@@ -1,7 +1,7 @@
 import Promise = require("bluebird");
-import {SearchResponse} from "./SearchResponse";
 import {AssetsServerBase} from "./AssetsServerBase";
 import {ReadStream} from 'fs';
+import tmp = require('tmp');
 
 export class AssetsServer extends AssetsServerBase {
 
@@ -87,10 +87,25 @@ export class AssetsServer extends AssetsServerBase {
         });
     };
 
-    public download = (
+    public downloadFromId = (
         assetId: string,
         assetName: string | null = null
     ): Promise<unknown> => {
-        return this.get('/file/' + assetId + '/*/' + (assetName ?? assetId) + '?_=1&v=1&forceDownload=true')
+        const _this = this;
+
+        return new Promise((resolve, reject) => {
+            tmp.file(
+                (err: any, path: string, fd: any) => {
+                    if (err) {
+                        return reject(err);
+                    }
+
+                    return _this.download('/file/' + assetId + '/*/' + (assetName ?? assetId) + '?_=1&v=1&forceDownload=true', path).then(file => {
+                        resolve(file);
+                    }).catch(err2 => {
+                        reject(err2);
+                    })
+                });
+        });
     }
 }

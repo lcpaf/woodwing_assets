@@ -2,6 +2,7 @@ import {AssetsConfig} from "./AssetsConfig";
 import {AssetsLogin} from "./AssetsLogin";
 import Promise = require("bluebird");
 import request = require('request');
+import fs = require('fs');
 
 export class AssetsServerBase {
 
@@ -26,13 +27,15 @@ export class AssetsServerBase {
 
     public get = (service: string, form: object = {}) => this.call(service, 'GET', form);
 
+    public download = (service: string, file: string) => this.call(service, 'GET', {}, file);
+
     public post = (service: string, form: object = {}) => this.call(service, 'POST', form);
 
     public put = (service: string, form: object = {}) => this.call(service, 'PUT', form);
 
     public delete = (service: string, form: object = {}) => this.call(service, 'DELETE', form);
 
-    private call(service: string, method: string, form: object = {}) {
+    private call(service: string, method: string, form: object = {}, file: string | null = null) {
         const _this = this;
         return new Promise((resolve: any, reject: any) => {
 
@@ -40,7 +43,7 @@ export class AssetsServerBase {
 
                 // first authenticate then call
                 return _this.authenticate().then((data) => {
-                    return _this.callSecondary(service, method, form);
+                    return _this.callSecondary(service, method, form, file);
                 }).then((authResult: any) => {
                     resolve(authResult);
                 }).catch((err: Error) => {
@@ -49,10 +52,10 @@ export class AssetsServerBase {
             } else {
 
                 // first call then authenticate if an 401 is received
-                _this.callSecondary(service, method, form).then((result: any) => {
+                _this.callSecondary(service, method, form, file).then((result: any) => {
                     if (result.errorcode === 401) { // Unauthorized
                         return _this.authenticate().then((data) => {
-                            return _this.callSecondary(service, method, form);
+                            return _this.callSecondary(service, method, form, file);
                         }).then((authResult: any) => {
                             resolve(authResult);
                         }).catch((err: Error) => {
@@ -87,7 +90,7 @@ export class AssetsServerBase {
         });
     }
 
-    private callSecondary = (service: string, method: string, form: object = {}) => {
+    private callSecondary = (service: string, method: string, form: object = {}, file: string | null = null) => {
         const _this = this;
         return new Promise((resolve: any, reject: any) => {
 
@@ -114,26 +117,44 @@ export class AssetsServerBase {
                     break;
             }
 
-            request(options, (err, response, body) => {
-                if (err) {
-                    return reject(err)
-                }
 
-                body = _this.parseBody(body);
+            if (null !== file) {
+                const fileHandle = fs.createWriteStream(file);
+                request(options, (err, response, body) => {
+                    if (err) {
+                        return reject(err)
+                    }
 
-                if (body && body.errorcode) {
-                    response.statusCode = body.errorcode;
-                    response.statusMessage = body.message;
-                }
+                }).pipe(fileHandle)
+                    .on('finish', () => {
+                        return resolve(file)
+                    })
+                    .on('error', (err) => {
+                        return reject(err)
+                    });
+            } else {
 
-                if (response.statusCode === 401) {
-                    return resolve(body);
-                } else if ((response.statusCode < 200 || response.statusCode > 299) && (response.statusCode !== 302)) {
-                    return reject(body);
-                } else {
-                    return resolve(body);
-                }
-            });
+                request(options, (err, response, body) => {
+                    if (err) {
+                        return reject(err)
+                    }
+
+                    body = _this.parseBody(body);
+
+                    if (body && body.errorcode) {
+                        response.statusCode = body.errorcode;
+                        response.statusMessage = body.message;
+                    }
+
+                    if (response.statusCode === 401) {
+                        return resolve(body);
+                    } else if ((response.statusCode < 200 || response.statusCode > 299) && (response.statusCode !== 302)) {
+                        return reject(body);
+                    } else {
+                        return resolve(body);
+                    }
+                });
+            }
         });
     }
 
