@@ -46,7 +46,7 @@ export class AssetsWebhook {
         const _this = this;
 
         const server = express();
-        server.listen(this.config.port)
+        server.listen(this.config.port, this.config.bindTo)
         server.post('/', (req: Request, res: Response, next: NextFunction) => {
 
             // send response  so that Assets doesn't have to wait for the processing

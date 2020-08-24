@@ -15,8 +15,7 @@ export class AssetsServer extends AssetsServerBase {
         format: string = 'json',
         appendRequestSecret: boolean = false,
         returnHighlightedText: boolean = true
-    ): Promise<SearchResponse> => {
-        // @ts-ignore
+    ): Promise<unknown> => {
         return this.get('/services/search', {
             q,
             start,
@@ -38,7 +37,7 @@ export class AssetsServer extends AssetsServerBase {
         filterQuery: string = '',
         flattenFolders: boolean = false,
         async: boolean = false
-    ) => {
+    ): Promise<unknown> => {
         return this.post('/services/move', {
             source,
             target,
@@ -52,25 +51,35 @@ export class AssetsServer extends AssetsServerBase {
 
     public update = (
         id: string,
-        metadata: object,
+        Filedata: ReadStream | null = null,
+        metadata: object | null = null,
         metadataToReturn: string = 'all',
         clearCheckoutState: boolean = true,
         parseMetadataModifications: boolean = true,
-    ) => {
-        return this.post('/services/update', {
+    ): Promise<unknown> => {
+        const form: { [k: string]: any } = {
             id,
-            metadata: JSON.stringify(metadata),
             metadataToReturn,
             clearCheckoutState: clearCheckoutState.toString(),
             parseMetadataModifications: parseMetadataModifications.toString(),
-        });
+        };
+
+        if (null !== Filedata) {
+            form.Filedata = Filedata;
+        }
+
+        if (null !== metadata) {
+            form.metadata = metadata;
+        }
+
+        return this.post('/services/update', form);
     };
 
     public create = (
         Filedata: ReadStream,
         metadata: object,
         metadataToReturn: string = 'all'
-    ) => {
+    ): Promise<unknown> => {
         return this.post('/services/create', {
             Filedata,
             metadata: JSON.stringify(metadata),
@@ -81,7 +90,7 @@ export class AssetsServer extends AssetsServerBase {
     public download = (
         assetId: string,
         assetName: string | null = null
-    ) => {
+    ): Promise<unknown> => {
         return this.get('/file/' + assetId + '/*/' + (assetName ?? assetId) + '?_=1&v=1&forceDownload=true')
     }
 }
