@@ -69,7 +69,7 @@ export class AssetsServer extends AssetsServerBase {
         }
 
         if (null !== metadata) {
-            form.metadata = metadata;
+            form.metadata = JSON.stringify(metadata);
         }
 
         return this.post('/services/update', form);
