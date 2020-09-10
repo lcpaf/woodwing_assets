@@ -8,6 +8,8 @@ export class AssetsServerBase {
 
     protected readonly config: AssetsConfig;
     private authToken: string | null = null;
+    private authTimestamp: Date | null = null;
+    private tokenValidity: number;
 
     public readonly FOLDER_REPLACE_POLICY_AUTO_RENAME = 'AUTO_RENAME';
     public readonly FOLDER_REPLACE_POLICY_MERGE = 'MERGE';
@@ -23,6 +25,7 @@ export class AssetsServerBase {
     constructor(config: AssetsConfig) {
         this.config = config;
         this.authToken = null;
+        this.tokenValidity = ((config.tokenValidityInMinutes ?? 30) - 2) * 60 * 1000
     }
 
     public get = (service: string, form: object = {}) => this.call(service, 'GET', form);
@@ -38,6 +41,11 @@ export class AssetsServerBase {
     private call(service: string, method: string, form: object = {}, file: string | null = null) {
         const _this = this;
         return new Promise((resolve: any, reject: any) => {
+
+            // invalidate token if X-2 minutes have passed. (the default Assets token validity is 30 minutes)
+            if (!_this.authTimestamp || new Date().getTime() - _this.authTimestamp.getTime() > _this.tokenValidity) {
+                _this.authToken = null;
+            }
 
             if (null === _this.authToken) {
 
@@ -81,6 +89,7 @@ export class AssetsServerBase {
             }).then((data: AssetsLogin) => {
                 if (data.loginSuccess) {
                     _this.authToken = data.authToken;
+                    _this.authTimestamp = new Date();
                     return resolve(data);
                 }
                 return reject(data.loginFaultMessage);

@@ -3,4 +3,5 @@ export interface AssetsConfig {
     username: string,
     password: string,
     rejectUnauthorized: boolean
+    tokenValidityInMinutes: number
 }
