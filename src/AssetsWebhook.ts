@@ -64,7 +64,7 @@ export class AssetsWebhook {
 
                 // validate the webhook signature
                 if (!_this.validateSignature(signature, data)) {
-                    throw new Error('Invalid webhook signature. Webhook discarded.');
+                    return errorHandler('Invalid webhook signature. Webhook discarded.');
                 }
 
                 try {

@@ -100,7 +100,7 @@ export class AssetsServer extends AssetsServerBase {
                         return reject(err);
                     }
 
-                    return _this.download('/file/' + assetId + '/*/' + (assetName ?? assetId) + '?&forceDownload=true', path).then(file => {
+                    return _this.download(`/file/${assetId}/*/${assetName ?? assetId}?&forceDownload=true`, path).then(file => {
                         resolve(file);
                     }).catch(err2 => {
                         reject(err2);
