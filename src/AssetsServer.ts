@@ -75,6 +75,26 @@ export class AssetsServer extends AssetsServerBase {
         return this.post('/services/update', form);
     };
 
+    public remove = (
+        q: string | null = null,
+        ids: Array<string> | null = null,
+        folderPath: string | null = null,
+        async: boolean = false
+    ): Promise<unknown> => {
+        const form: { [k: string]: any } = {};
+        if (null !== q) {
+            form.q = q;
+        }
+        if (null !== ids) {
+            form.ids = ids.join(',');
+        }
+        if (null !== folderPath) {
+            form.folderPath = folderPath;
+        }
+        form.async = async.toString();
+        return this.post('/services/remove', form);
+    }
+
     public create = (
         Filedata: ReadStream,
         metadata: object,
