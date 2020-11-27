@@ -77,7 +77,7 @@ export class AssetsServer extends AssetsServerBase {
 
     public remove = (
         q: string | null = null,
-        ids: Array<string> | null = null,
+        ids: string[] | null = null,
         folderPath: string | null = null,
         async: boolean = false
     ): Promise<unknown> => {
