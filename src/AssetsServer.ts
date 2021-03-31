@@ -107,6 +107,18 @@ export class AssetsServer extends AssetsServerBase {
         });
     };
 
+    public createRelation = (
+        relationType: string,
+        target1Id: string,
+        target2Id: string,
+    ): Promise<unknown> => {
+        return this.post('/services/createRelation', {
+            relationType,
+            target1Id,
+            target2Id
+        });
+    };
+
     public downloadFromId = (
         assetId: string,
         assetName: string | null = null
