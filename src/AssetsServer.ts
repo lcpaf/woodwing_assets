@@ -119,6 +119,14 @@ export class AssetsServer extends AssetsServerBase {
         });
     };
 
+    public removeRelation = (
+        relationIds: string[],
+    ): Promise<unknown> => {
+        return this.post('/services/removeRelation', {
+            relationIds: relationIds.toString(),
+        });
+    };
+
     public downloadFromId = (
         assetId: string,
         assetName: string | null = null
