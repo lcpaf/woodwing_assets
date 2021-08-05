@@ -81,7 +81,7 @@ export class AssetsServer extends AssetsServerBase {
     ): Promise<unknown> => {
         const form: { [k: string]: any } = {
             q,
-            metadata
+            metadata: JSON.stringify(metadata)
         };
         return this.post('/services/updatebulk', form);
     };
