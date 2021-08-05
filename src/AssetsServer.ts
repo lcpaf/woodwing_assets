@@ -75,6 +75,17 @@ export class AssetsServer extends AssetsServerBase {
         return this.post('/services/update', form);
     };
 
+    public updateBulk = (
+        q: string,
+        metadata: object
+    ): Promise<unknown> => {
+        const form: { [k: string]: any } = {
+            q,
+            metadata
+        };
+        return this.post('/services/updatebulk', form);
+    };
+
     public remove = (
         q: string | null = null,
         ids: string[] | null = null,
