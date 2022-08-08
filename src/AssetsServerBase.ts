@@ -131,7 +131,7 @@ export class AssetsServerBase {
             if (null !== file) {
                 const fileHandle = fs.createWriteStream(file);
 
-                http.get(options.url, {'headers': {'authorization': 'Bearer ' + options.auth.bearer}}, function (response) {
+                http.get(options.url, {'headers': {'authorization': 'Bearer ' + options.auth.bearer}}, (response) => {
                     response.pipe(fileHandle);
                     fileHandle.on('finish', () => {
                         return resolve(file)
