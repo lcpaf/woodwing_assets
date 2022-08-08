@@ -2,6 +2,7 @@ import {AssetsConfig} from "./AssetsConfig";
 import {AssetsLogin} from "./AssetsLogin";
 import Promise = require("bluebird");
 import request = require('request');
+import http = require('http');
 import fs = require('fs');
 
 export class AssetsServerBase {
@@ -129,18 +130,15 @@ export class AssetsServerBase {
 
             if (null !== file) {
                 const fileHandle = fs.createWriteStream(file);
-                request(options, (err, response, body) => {
-                    if (err) {
-                        return reject(err)
-                    }
 
-                }).pipe(fileHandle)
-                    .on('finish', () => {
+                http.get(options.url, {'headers': {'authorization': 'Bearer ' + options.auth.bearer}}, function (response) {
+                    response.pipe(fileHandle);
+                    fileHandle.on('finish', () => {
                         return resolve(file)
-                    })
-                    .on('error', (err) => {
+                    }).on('error', (err) => {
                         return reject(err)
-                    });
+                    })
+                })
             } else {
 
                 request(options, (err, response, body) => {
