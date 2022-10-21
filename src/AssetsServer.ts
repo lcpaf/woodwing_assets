@@ -118,6 +118,14 @@ export class AssetsServer extends AssetsServerBase {
         });
     };
 
+    public createFolder = (
+        path: string
+    ): Promise<unknown> => {
+        return this.post('/services/createFolder', {
+            path
+        });
+    };
+
     public createRelation = (
         relationType: string,
         target1Id: string,
