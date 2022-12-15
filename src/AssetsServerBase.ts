@@ -132,7 +132,7 @@ export class AssetsServerBase {
             if (null !== file) {
                 const fileHandle = fs.createWriteStream(file);
 
-                let requestHandler = options.url.startsWith('https') ? https : http;
+                const requestHandler = options.url.startsWith('https') ? https : http;
                 requestHandler.get(options.url, {'headers': {'authorization': 'Bearer ' + options.auth.bearer}}, (response) => {
                     response.pipe(fileHandle);
                     fileHandle.on('finish', () => {
