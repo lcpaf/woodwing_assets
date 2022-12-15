@@ -146,6 +146,29 @@ export class AssetsServer extends AssetsServerBase {
         });
     };
 
+    public getMetadataReport = (
+        q: string,
+        format: string = 'csv'
+    ): Promise<unknown> => {
+        const _this = this;
+
+        return new Promise((resolve, reject) => {
+            tmp.file(
+                (err: any, path: string, fd: any) => {
+                    if (err) {
+                        return reject(err);
+                    }
+
+
+                    return _this.download(`/metadata/<reportname>.${format}?q=${q}`, path).then(file => {
+                        resolve(file);
+                    }).catch(err2 => {
+                        reject(err2);
+                    })
+                });
+        });
+    };
+
     public downloadFromId = (
         assetId: string,
         assetName: string | null = null
