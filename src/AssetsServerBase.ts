@@ -3,6 +3,7 @@ import {AssetsLogin} from "./AssetsLogin";
 import Promise = require("bluebird");
 import request = require('request');
 import http = require('http');
+import https = require('https');
 import fs = require('fs');
 
 export class AssetsServerBase {
@@ -131,7 +132,8 @@ export class AssetsServerBase {
             if (null !== file) {
                 const fileHandle = fs.createWriteStream(file);
 
-                http.get(options.url, {'headers': {'authorization': 'Bearer ' + options.auth.bearer}}, (response) => {
+                let requestHandler = options.url.startsWith('https') ? https : http;
+                requestHandler.get(options.url, {'headers': {'authorization': 'Bearer ' + options.auth.bearer}}, (response) => {
                     response.pipe(fileHandle);
                     fileHandle.on('finish', () => {
                         return resolve(file)
