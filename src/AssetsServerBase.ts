@@ -111,9 +111,8 @@ export class AssetsServerBase {
                 url: _this.config.serverUrl + service,
                 qs: {},
                 formData: {},
+                json: {},
                 jar: true,
-                json: false,
-                body: {},
                 auth: {
                     bearer: (_this.authToken !== '') ? _this.authToken as string : 'something_random' // do not send a empty string, so the "Unauthorized" is not received. 400 is received instead
                 }
@@ -122,14 +121,19 @@ export class AssetsServerBase {
             switch (method) {
                 case 'POST':
                     options.formData = form;
+                    delete options.json;
+                    delete options.qs;
                     break;
                 case 'PUT':
-                    options.json = true;
-                    options.body = form;
+                    options.json = form;
+                    delete options.formData;
+                    delete options.qs;
                     break;
                 case 'GET':
                 case 'DELETE':
                     options.qs = form;
+                    delete options.json;
+                    delete options.formData;
                     break;
             }
 
