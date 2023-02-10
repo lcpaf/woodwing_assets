@@ -112,6 +112,8 @@ export class AssetsServerBase {
                 qs: {},
                 formData: {},
                 jar: true,
+                json: false,
+                body: {},
                 auth: {
                     bearer: (_this.authToken !== '') ? _this.authToken as string : 'something_random' // do not send a empty string, so the "Unauthorized" is not received. 400 is received instead
                 }
@@ -119,8 +121,11 @@ export class AssetsServerBase {
 
             switch (method) {
                 case 'POST':
-                case 'PUT':
                     options.formData = form;
+                    break;
+                case 'PUT':
+                    options.json = true;
+                    options.body = form;
                     break;
                 case 'GET':
                 case 'DELETE':
