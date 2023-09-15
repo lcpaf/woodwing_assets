@@ -29,6 +29,30 @@ export class AssetsServer extends AssetsServerBase {
         });
     };
 
+    public browse = (
+        path: string,
+        fromRoot: null | string = null,
+        includeFolders: boolean = true,
+        includeAsset: boolean = true,
+        includeExtensions: null | string = null,
+    ): Promise<unknown> => {
+
+        const form: { [k: string]: any } = {
+            path,
+            includeFolders: includeFolders.toString(),
+            includeAsset: includeAsset.toString(),
+        };
+
+        if (null !== fromRoot) {
+            form.fromRoot = fromRoot;
+        }
+        if (null !== includeExtensions) {
+            form.includeExtensions = includeExtensions;
+        }
+
+        return this.get('/services/browse', form);
+    };
+
     public move = (
         source: string,
         target: string,
