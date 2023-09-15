@@ -33,14 +33,14 @@ export class AssetsServer extends AssetsServerBase {
         path: string,
         fromRoot: null | string = null,
         includeFolders: boolean = true,
-        includeAsset: boolean = true,
+        includeAssets: boolean = true,
         includeExtensions: null | string = null,
     ): Promise<unknown> => {
 
         const form: { [k: string]: any } = {
             path,
             includeFolders: includeFolders.toString(),
-            includeAsset: includeAsset.toString(),
+            includeAssets: includeAssets.toString(),
         };
 
         if (null !== fromRoot) {
