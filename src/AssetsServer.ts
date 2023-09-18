@@ -1,6 +1,6 @@
 import Promise = require("bluebird");
 import {AssetsServerBase} from "./AssetsServerBase";
-import {ReadStream} from 'fs';
+import {PathLike, ReadStream} from 'fs';
 import tmp = require('tmp');
 
 export class AssetsServer extends AssetsServerBase {
@@ -131,15 +131,18 @@ export class AssetsServer extends AssetsServerBase {
     }
 
     public create = (
-        Filedata: ReadStream,
-        metadata: object,
-        metadataToReturn: string = 'all'
+        Filedata: ReadStream | null = null,
+        metadata: object | null = null,
+        metadataToReturn: string = 'all',
     ): Promise<unknown> => {
-        return this.post('/services/create', {
-            Filedata,
-            metadata: JSON.stringify(metadata),
-            metadataToReturn
-        });
+        const form: { [k: string]: any } = {metadataToReturn};
+        if (null !== Filedata) {
+            form.Filedata = Filedata;
+        }
+        if (null !== metadata) {
+            form.metadata = metadata;
+        }
+        return this.post('/services/create', form);
     };
 
     public createFolder = (
