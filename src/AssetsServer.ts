@@ -140,7 +140,7 @@ export class AssetsServer extends AssetsServerBase {
             form.Filedata = Filedata;
         }
         if (null !== metadata) {
-            form.metadata = metadata;
+            form.metadata = JSON.stringify(metadata);
         }
         return this.post('/services/create', form);
     };
