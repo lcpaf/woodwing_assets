@@ -2,7 +2,6 @@ import Promise = require("bluebird");
 import {AssetsServerBase} from "./AssetsServerBase";
 import {PathLike, ReadStream} from 'fs';
 import tmp = require('tmp');
-import pathModule = require('path');
 
 export class AssetsServer extends AssetsServerBase {
 
@@ -205,8 +204,7 @@ export class AssetsServer extends AssetsServerBase {
 
         return new Promise((resolve, reject) => {
             const tmpDir = tmp.dirSync();
-            const randomFileName = tmp.tmpNameSync({dir: tmpDir.name});
-            const path = pathModule.join(tmpDir.name, randomFileName);
+            const path = tmp.tmpNameSync({dir: tmpDir.name});
             return _this.download(`/file/${assetId}/*/${assetName ?? assetId}?forceDownload=true`, path).then(file => {
                 resolve(file);
             }).catch(err2 => {
