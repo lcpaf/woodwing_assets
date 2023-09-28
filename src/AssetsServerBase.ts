@@ -151,10 +151,8 @@ export class AssetsServerBase {
                 requestHandler.get(options.url, {'headers': {'authorization': 'Bearer ' + options.auth.bearer}}, (response) => {
                     response.pipe(fileHandle);
                     fileHandle.on('finish', () => {
-                        fileHandle.close()
                         return resolve(file)
                     }).on('error', (err) => {
-                        fileHandle.close()
                         return reject(err)
                     })
                 })
