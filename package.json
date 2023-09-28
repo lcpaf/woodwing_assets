@@ -1,6 +1,6 @@
 {
     "name": "woodwing-assets",
-    "version": "1.0.32",
+    "version": "1.0.33",
     "description": "Tools to connect to a WoodWing Assets Server API",
     "main": "lib/index.js",
     "types": "lib/index.d.ts",
@@ -58,6 +58,7 @@
         "fs": "0.0.1-security",
         "http": "^0.0.1-security",
         "https": "^1.0.0",
+        "path": "^0.12.7",
         "request": "^2.88.2",
         "safe-compare": "^1.1.4",
         "stream": "0.0.2",
