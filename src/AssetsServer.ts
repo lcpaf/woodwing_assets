@@ -5,6 +5,8 @@ import tmp = require('tmp');
 
 export class AssetsServer extends AssetsServerBase {
 
+    private tmpDir: tmp.DirResult | null = null;
+
     public search = (
         q: string,
         start: number = 0,
@@ -180,19 +182,16 @@ export class AssetsServer extends AssetsServerBase {
         const _this = this;
 
         return new Promise((resolve, reject) => {
-            tmp.file(
-                (err: any, path: string, fd: any) => {
-                    if (err) {
-                        return reject(err);
-                    }
+            if (!this.tmpDir) {
+                this.tmpDir = tmp.dirSync();
+            }
+            const path = tmp.tmpNameSync({dir: this.tmpDir.name});
 
-
-                    return _this.download(`/metadata/<reportname>.${format}?q=${q}`, path).then(file => {
-                        resolve(file);
-                    }).catch(err2 => {
-                        reject(err2);
-                    })
-                });
+            return _this.download(`/metadata/<reportname>.${format}?q=${q}`, path).then(file => {
+                resolve(file);
+            }).catch(err2 => {
+                reject(err2);
+            })
         });
     };
 
@@ -203,8 +202,11 @@ export class AssetsServer extends AssetsServerBase {
         const _this = this;
 
         return new Promise((resolve, reject) => {
-            const tmpDir = tmp.dirSync();
-            const path = tmp.tmpNameSync({dir: tmpDir.name});
+            if (!this.tmpDir) {
+                this.tmpDir = tmp.dirSync();
+            }
+            const path = tmp.tmpNameSync({dir: this.tmpDir.name});
+
             return _this.download(`/file/${assetId}/*/${assetName ?? assetId}?forceDownload=true`, path).then(file => {
                 resolve(file);
             }).catch(err2 => {
@@ -220,17 +222,16 @@ export class AssetsServer extends AssetsServerBase {
         const _this = this;
 
         return new Promise((resolve, reject) => {
-            tmp.file(
-                (err: any, path: string, fd: any) => {
-                    if (err) {
-                        return reject(err);
-                    }
-                    return _this.download(`/preview/${assetId}/*/${assetName ?? assetId}.jpg?forceDownload=true`, path).then(file => {
-                        resolve(file);
-                    }).catch(err2 => {
-                        reject(err2);
-                    })
-                });
+            if (!this.tmpDir) {
+                this.tmpDir = tmp.dirSync();
+            }
+            const path = tmp.tmpNameSync({dir: this.tmpDir.name});
+
+            return _this.download(`/preview/${assetId}/*/${assetName ?? assetId}.jpg?forceDownload=true`, path).then(file => {
+                resolve(file);
+            }).catch(err2 => {
+                reject(err2);
+            })
         });
     }
 }
