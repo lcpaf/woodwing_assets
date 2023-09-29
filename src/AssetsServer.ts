@@ -182,13 +182,8 @@ export class AssetsServer extends AssetsServerBase {
         const _this = this;
 
         return new Promise((resolve, reject) => {
-            if (!this.tmpDir) {
-                this.tmpDir = tmp.dirSync();
-            }
-            const path = tmp.tmpNameSync({dir: this.tmpDir.name});
-
-            return _this.download(`/metadata/<reportname>.${format}?q=${q}`, path).then(file => {
-                resolve(file);
+            return _this.download(`/metadata/<reportname>.${format}?q=${q}`).then(buffer => {
+                resolve(buffer);
             }).catch(err2 => {
                 reject(err2);
             })
@@ -202,13 +197,8 @@ export class AssetsServer extends AssetsServerBase {
         const _this = this;
 
         return new Promise((resolve, reject) => {
-            if (!this.tmpDir) {
-                this.tmpDir = tmp.dirSync();
-            }
-            const path = tmp.tmpNameSync({dir: this.tmpDir.name});
-
-            return _this.download(`/file/${assetId}/*/${assetName ?? assetId}?forceDownload=true`, path).then(file => {
-                resolve(file);
+            return _this.download(`/file/${assetId}/*/${assetName ?? assetId}?forceDownload=true`).then(buffer => {
+                resolve(buffer);
             }).catch(err2 => {
                 reject(err2);
             })
@@ -222,13 +212,8 @@ export class AssetsServer extends AssetsServerBase {
         const _this = this;
 
         return new Promise((resolve, reject) => {
-            if (!this.tmpDir) {
-                this.tmpDir = tmp.dirSync();
-            }
-            const path = tmp.tmpNameSync({dir: this.tmpDir.name});
-
-            return _this.download(`/preview/${assetId}/*/${assetName ?? assetId}.jpg?forceDownload=true`, path).then(file => {
-                resolve(file);
+            return _this.download(`/preview/${assetId}/*/${assetName ?? assetId}.jpg?forceDownload=true`).then(buffer => {
+                resolve(buffer);
             }).catch(err2 => {
                 reject(err2);
             })

@@ -32,7 +32,7 @@ export class AssetsServerBase {
 
     public get = (service: string, form: object = {}) => this.call(service, 'GET', form);
 
-    public download = (service: string, file: string) => this.call(service, 'GET', {}, file);
+    public download = (service: string) => this.call(service, 'GET', {}, Buffer.from([]));
 
     public post = (service: string, form: object = {}, json: boolean = false) => this.call(service, 'POST', form, null, json);
 
@@ -40,7 +40,7 @@ export class AssetsServerBase {
 
     public delete = (service: string, form: object = {}) => this.call(service, 'DELETE', form);
 
-    private call(service: string, method: string, form: object = {}, file: string | null = null, json: boolean = false) {
+    private call(service: string, method: string, form: object = {}, buffer: Buffer | null = null, json: boolean = false) {
         const _this = this;
         return new Promise((resolve: any, reject: any) => {
 
@@ -52,22 +52,22 @@ export class AssetsServerBase {
             if (null === _this.authToken) {
 
                 // first authenticate then call
-                return _this.authenticate().then((data) => {
-                    return _this.callSecondary(service, method, form, file, json);
-                }).then((authResult: any) => {
-                    resolve(authResult);
+                return _this.authenticate().then((authResult) => {
+                    return _this.callSecondary(service, method, form, buffer, json);
+                }).then((data: any) => {
+                    resolve(data);
                 }).catch((err: Error) => {
                     reject(err);
                 });
             } else {
 
                 // first call then authenticate if an 401 is received
-                _this.callSecondary(service, method, form, file, json).then((result: any) => {
+                _this.callSecondary(service, method, form, buffer, json).then((result: any) => {
                     if (result.errorcode === 401) { // Unauthorized
-                        return _this.authenticate().then((data) => {
-                            return _this.callSecondary(service, method, form, file, json);
-                        }).then((authResult: any) => {
-                            resolve(authResult);
+                        return _this.authenticate().then((auth) => {
+                            return _this.callSecondary(service, method, form, buffer, json);
+                        }).then((data: any) => {
+                            resolve(data);
                         }).catch((err: Error) => {
                             reject(err);
                         });
@@ -101,7 +101,7 @@ export class AssetsServerBase {
         });
     }
 
-    private callSecondary = (service: string, method: string, form: object = {}, file: string | null = null, json: boolean = false) => {
+    private callSecondary = (service: string, method: string, form: object = {}, buffer: Buffer | null = null, json: boolean = false) => {
         const _this = this;
         return new Promise((resolve: any, reject: any) => {
 
@@ -144,17 +144,21 @@ export class AssetsServerBase {
             }
 
 
-            if (null !== file) {
-                const fileHandle = fs.createWriteStream(file);
-
+            if (null !== buffer) {
                 const requestHandler = options.url.startsWith('https') ? https : http;
                 requestHandler.get(options.url, {'headers': {'authorization': 'Bearer ' + options.auth.bearer}}, (response) => {
-                    response.pipe(fileHandle);
-                    fileHandle.on('finish', () => {
-                        return resolve(file)
-                    }).on('error', (err) => {
-                        return reject(err)
-                    })
+
+                    response.on('data', (chunk) => {
+                        buffer = Buffer.concat([buffer, chunk]);
+                    });
+
+                    response.on('end', () => {
+                        return resolve(buffer);
+                    });
+
+                    response.on('error', (err) => {
+                        return reject(err);
+                    });
                 })
             } else {
 
