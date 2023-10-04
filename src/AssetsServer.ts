@@ -175,6 +175,16 @@ export class AssetsServer extends AssetsServerBase {
         });
     };
 
+    public removeFromCollection = (
+        childIds: string[],
+        collectionId: string,
+    ): Promise<unknown> => {
+        return this.post('/services/collection/remove', {
+            childIds: childIds.toString(),
+            collectionId,
+        });
+    };
+
     public getMetadataReport = (
         q: string,
         format: string = 'csv'
