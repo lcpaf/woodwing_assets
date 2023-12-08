@@ -1,9 +1,11 @@
 import Promise = require("bluebird");
 import {AssetsServerBase} from "./AssetsServerBase";
-import {ReadStream} from 'fs';
+import {PathLike, ReadStream} from 'fs';
 import tmp = require('tmp');
 
 export class AssetsServer extends AssetsServerBase {
+
+    private tmpDir: tmp.DirResult | null = null;
 
     public search = (
         q: string,
@@ -27,6 +29,30 @@ export class AssetsServer extends AssetsServerBase {
             appendRequestSecret: appendRequestSecret.toString(),
             returnHighlightedText: returnHighlightedText.toString(),
         });
+    };
+
+    public browse = (
+        path: string,
+        fromRoot: null | string = null,
+        includeFolders: boolean = true,
+        includeAssets: boolean = true,
+        includeExtensions: null | string = null,
+    ): Promise<unknown> => {
+
+        const form: { [k: string]: any } = {
+            path,
+            includeFolders: includeFolders.toString(),
+            includeAssets: includeAssets.toString(),
+        };
+
+        if (null !== fromRoot) {
+            form.fromRoot = fromRoot;
+        }
+        if (null !== includeExtensions) {
+            form.includeExtensions = includeExtensions;
+        }
+
+        return this.get('/services/browse', form);
     };
 
     public move = (
@@ -107,15 +133,18 @@ export class AssetsServer extends AssetsServerBase {
     }
 
     public create = (
-        Filedata: ReadStream,
-        metadata: object,
-        metadataToReturn: string = 'all'
+        Filedata: ReadStream | null = null,
+        metadata: object | null = null,
+        metadataToReturn: string = 'all',
     ): Promise<unknown> => {
-        return this.post('/services/create', {
-            Filedata,
-            metadata: JSON.stringify(metadata),
-            metadataToReturn
-        });
+        const form: { [k: string]: any } = {metadataToReturn};
+        if (null !== Filedata) {
+            form.Filedata = Filedata;
+        }
+        if (null !== metadata) {
+            form.metadata = JSON.stringify(metadata);
+        }
+        return this.post('/services/create', form);
     };
 
     public createFolder = (
@@ -146,6 +175,16 @@ export class AssetsServer extends AssetsServerBase {
         });
     };
 
+    public removeFromCollection = (
+        childIds: string[],
+        collectionId: string,
+    ): Promise<unknown> => {
+        return this.post('/services/collection/remove', {
+            childIds: childIds.toString(),
+            collectionId,
+        });
+    };
+
     public getMetadataReport = (
         q: string,
         format: string = 'csv'
@@ -153,19 +192,16 @@ export class AssetsServer extends AssetsServerBase {
         const _this = this;
 
         return new Promise((resolve, reject) => {
-            tmp.file(
-                (err: any, path: string, fd: any) => {
-                    if (err) {
-                        return reject(err);
-                    }
+            if (!this.tmpDir) {
+                this.tmpDir = tmp.dirSync();
+            }
+            const path = tmp.tmpNameSync({dir: this.tmpDir.name});
 
-
-                    return _this.download(`/metadata/<reportname>.${format}?q=${q}`, path).then(file => {
-                        resolve(file);
-                    }).catch(err2 => {
-                        reject(err2);
-                    })
-                });
+            return _this.download(`/metadata/<reportname>.${format}?q=${q}`, path).then(file => {
+                resolve(file);
+            }).catch(err2 => {
+                reject(err2);
+            })
         });
     };
 
@@ -176,18 +212,16 @@ export class AssetsServer extends AssetsServerBase {
         const _this = this;
 
         return new Promise((resolve, reject) => {
-            tmp.file(
-                (err: any, path: string, fd: any) => {
-                    if (err) {
-                        return reject(err);
-                    }
+            if (!this.tmpDir) {
+                this.tmpDir = tmp.dirSync();
+            }
+            const path = tmp.tmpNameSync({dir: this.tmpDir.name});
 
-                    return _this.download(`/file/${assetId}/*/${assetName ?? assetId}?forceDownload=true`, path).then(file => {
-                        resolve(file);
-                    }).catch(err2 => {
-                        reject(err2);
-                    })
-                });
+            return _this.download(`/file/${assetId}/*/${assetName ?? assetId}?forceDownload=true`, path).then(file => {
+                resolve(file);
+            }).catch(err2 => {
+                reject(err2);
+            })
         });
     }
 
@@ -198,17 +232,16 @@ export class AssetsServer extends AssetsServerBase {
         const _this = this;
 
         return new Promise((resolve, reject) => {
-            tmp.file(
-                (err: any, path: string, fd: any) => {
-                    if (err) {
-                        return reject(err);
-                    }
-                    return _this.download(`/preview/${assetId}/*/${assetName ?? assetId}.jpg?forceDownload=true`, path).then(file => {
-                        resolve(file);
-                    }).catch(err2 => {
-                        reject(err2);
-                    })
-                });
+            if (!this.tmpDir) {
+                this.tmpDir = tmp.dirSync();
+            }
+            const path = tmp.tmpNameSync({dir: this.tmpDir.name});
+
+            return _this.download(`/preview/${assetId}/*/${assetName ?? assetId}.jpg?forceDownload=true`, path).then(file => {
+                resolve(file);
+            }).catch(err2 => {
+                reject(err2);
+            })
         });
     }
 }
