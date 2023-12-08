@@ -114,7 +114,7 @@ export class AssetsServerBase {
                 json: {},
                 jar: true,
                 auth: {
-                    bearer: (_this.authToken !== '') ? _this.authToken as string : 'something_random' // do not send a empty string, so the "Unauthorized" is not received. 400 is received instead
+                    bearer: (_this.authToken !== '') ? _this.authToken as string : 'something_random' // do not send an empty string, so the "Unauthorized" is not received. 400 is received instead
                 }
             };
 
