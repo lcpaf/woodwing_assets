@@ -35,7 +35,6 @@
     "homepage": "https://github.com/lcpaf/woodwing_assets#readme",
     "devDependencies": {
         "@types/jest": "^26.0.7",
-        "@types/node": "^20.8.8",
         "jest": "^26.2.1",
         "prettier": "^2.0.5",
         "ts-jest": "^26.1.4",
