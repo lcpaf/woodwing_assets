@@ -3,6 +3,7 @@ import {AssetsLogin} from "./AssetsLogin";
 import Promise = require("bluebird");
 import request = require('request');
 import http = require('http');
+import https = require('https');
 import fs = require('fs');
 
 export class AssetsServerBase {
@@ -33,13 +34,13 @@ export class AssetsServerBase {
 
     public download = (service: string, file: string) => this.call(service, 'GET', {}, file);
 
-    public post = (service: string, form: object = {}) => this.call(service, 'POST', form);
+    public post = (service: string, form: object = {}, json: boolean = false) => this.call(service, 'POST', form, null, json);
 
-    public put = (service: string, form: object = {}) => this.call(service, 'PUT', form);
+    public put = (service: string, form: object = {}, json: boolean = false) => this.call(service, 'PUT', form, null, json);
 
     public delete = (service: string, form: object = {}) => this.call(service, 'DELETE', form);
 
-    private call(service: string, method: string, form: object = {}, file: string | null = null) {
+    private call(service: string, method: string, form: object = {}, file: string | null = null, json: boolean = false) {
         const _this = this;
         return new Promise((resolve: any, reject: any) => {
 
@@ -52,7 +53,7 @@ export class AssetsServerBase {
 
                 // first authenticate then call
                 return _this.authenticate().then((data) => {
-                    return _this.callSecondary(service, method, form, file);
+                    return _this.callSecondary(service, method, form, file, json);
                 }).then((authResult: any) => {
                     resolve(authResult);
                 }).catch((err: Error) => {
@@ -61,10 +62,10 @@ export class AssetsServerBase {
             } else {
 
                 // first call then authenticate if an 401 is received
-                _this.callSecondary(service, method, form, file).then((result: any) => {
+                _this.callSecondary(service, method, form, file, json).then((result: any) => {
                     if (result.errorcode === 401) { // Unauthorized
                         return _this.authenticate().then((data) => {
-                            return _this.callSecondary(service, method, form, file);
+                            return _this.callSecondary(service, method, form, file, json);
                         }).then((authResult: any) => {
                             resolve(authResult);
                         }).catch((err: Error) => {
@@ -100,7 +101,7 @@ export class AssetsServerBase {
         });
     }
 
-    private callSecondary = (service: string, method: string, form: object = {}, file: string | null = null) => {
+    private callSecondary = (service: string, method: string, form: object = {}, file: string | null = null, json: boolean = false) => {
         const _this = this;
         return new Promise((resolve: any, reject: any) => {
 
@@ -110,6 +111,7 @@ export class AssetsServerBase {
                 url: _this.config.serverUrl + service,
                 qs: {},
                 formData: {},
+                json: {},
                 jar: true,
                 auth: {
                     bearer: (_this.authToken !== '') ? _this.authToken as string : 'something_random' // do not send a empty string, so the "Unauthorized" is not received. 400 is received instead
@@ -118,12 +120,26 @@ export class AssetsServerBase {
 
             switch (method) {
                 case 'POST':
+                    if (json) {
+                        options.json = form;
+                        delete options.formData;
+                        delete options.qs;
+                    } else {
+                        options.formData = form;
+                        delete options.json;
+                        delete options.qs;
+                    }
+                    break;
                 case 'PUT':
-                    options.formData = form;
+                    options.json = form;
+                    delete options.formData;
+                    delete options.qs;
                     break;
                 case 'GET':
                 case 'DELETE':
                     options.qs = form;
+                    delete options.json;
+                    delete options.formData;
                     break;
             }
 
@@ -131,7 +147,8 @@ export class AssetsServerBase {
             if (null !== file) {
                 const fileHandle = fs.createWriteStream(file);
 
-                http.get(options.url, {'headers': {'authorization': 'Bearer ' + options.auth.bearer}}, (response) => {
+                const requestHandler = options.url.startsWith('https') ? https : http;
+                requestHandler.get(options.url, {'headers': {'authorization': 'Bearer ' + options.auth.bearer}}, (response) => {
                     response.pipe(fileHandle);
                     fileHandle.on('finish', () => {
                         return resolve(file)
