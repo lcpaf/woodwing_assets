@@ -105,13 +105,13 @@ export class AssetsServerBase {
         const _this = this;
         return new Promise((resolve: any, reject: any) => {
 
-            const options = {
+            const options: any = {
                 method,
                 rejectUnauthorized: _this.config.rejectUnauthorized,
                 url: _this.config.serverUrl + service,
                 qs: {},
                 formData: {},
-                json: {},
+                // json: {},
                 jar: true,
                 auth: {
                     bearer: (_this.authToken !== '') ? _this.authToken as string : 'something_random' // do not send an empty string, so the "Unauthorized" is not received. 400 is received instead
@@ -158,7 +158,7 @@ export class AssetsServerBase {
                 })
             } else {
 
-                request(options, (err, response, body) => {
+                request(options, (err: any, response: any, body: any) => {
                     if (err) {
                         return reject(err)
                     }

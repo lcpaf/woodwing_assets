@@ -69,7 +69,7 @@ export class AssetsWebhook {
 
                 try {
                     return successHandler(JSON.parse(data.toString()));
-                } catch (error) {
+                } catch (error: any) {
                     // logger.error(error);
                     return errorHandler(error);
                 }
