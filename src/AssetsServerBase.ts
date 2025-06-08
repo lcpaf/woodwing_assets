@@ -3,7 +3,7 @@ import FormData from 'form-data';
 import * as fs from 'fs';
 import https from 'https';
 import {AssetsConfig} from './AssetsConfig';
-import {AssetsLogin} from './AssetsLogin';
+import {ApiLoginResponse} from './interfaces/ApiLoginResponse';
 
 export class AssetsServerBase {
     protected readonly config: AssetsConfig;
@@ -13,16 +13,16 @@ export class AssetsServerBase {
     private readonly axiosInstance: AxiosInstance;
 
     // Replacement policies
-    public readonly FOLDER_REPLACE_POLICY_AUTO_RENAME = 'AUTO_RENAME';
-    public readonly FOLDER_REPLACE_POLICY_MERGE = 'MERGE';
-    public readonly FOLDER_REPLACE_POLICY_THROW_EXCEPTION = 'THROW_EXCEPTION';
+    public static readonly FOLDER_REPLACE_POLICY_AUTO_RENAME = 'AUTO_RENAME';
+    public static readonly FOLDER_REPLACE_POLICY_MERGE = 'MERGE';
+    public static readonly FOLDER_REPLACE_POLICY_THROW_EXCEPTION = 'THROW_EXCEPTION';
 
-    public readonly FILE_REPLACE_POLICY_AUTO_RENAME = 'AUTO_RENAME';
-    public readonly FILE_REPLACE_POLICY_OVERWRITE = 'OVERWRITE';
-    public readonly FILE_REPLACE_POLICY_OVERWRITE_IF_NEWER = 'OVERWRITE_IF_NEWER';
-    public readonly FILE_REPLACE_POLICY_REMOVE_SOURCE = 'REMOVE_SOURCE';
-    public readonly FILE_REPLACE_POLICY_THROW_EXCEPTION = 'THROW_EXCEPTION';
-    public readonly FILE_REPLACE_POLICY_DO_NOTHING = 'DO_NOTHING';
+    public static readonly FILE_REPLACE_POLICY_AUTO_RENAME = 'AUTO_RENAME';
+    public static readonly FILE_REPLACE_POLICY_OVERWRITE = 'OVERWRITE';
+    public static readonly FILE_REPLACE_POLICY_OVERWRITE_IF_NEWER = 'OVERWRITE_IF_NEWER';
+    public static readonly FILE_REPLACE_POLICY_REMOVE_SOURCE = 'REMOVE_SOURCE';
+    public static readonly FILE_REPLACE_POLICY_THROW_EXCEPTION = 'THROW_EXCEPTION';
+    public static readonly FILE_REPLACE_POLICY_DO_NOTHING = 'DO_NOTHING';
 
     constructor(config: AssetsConfig) {
         this.config = config;
@@ -130,7 +130,7 @@ export class AssetsServerBase {
         form.append('username', this.config.username);
         form.append('password', this.config.password);
 
-        const response = await this.axiosInstance.post<AssetsLogin>('/services/apilogin', form, {
+        const response = await this.axiosInstance.post<ApiLoginResponse>('/services/apilogin', form, {
             headers: form.getHeaders(),
         });
 

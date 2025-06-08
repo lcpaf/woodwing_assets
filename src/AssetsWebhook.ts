@@ -1,50 +1,50 @@
 import express, {NextFunction, Request, Response} from 'express';
 import crypto from 'crypto';
+import http from 'http';
 import {WebhookConfig} from './WebhookConfig';
-
-type WebhookPayload = Record<string, any>;
+import {WebhookPayload} from "./interfaces/WebhookPayload";
 
 type WebhookSuccessHandler = (request: WebhookPayload) => void;
 type WebhookErrorHandler = (error: string) => void;
 
 export class AssetsWebhook {
-    public readonly ASSET_CHECKIN = 'asset_checkin';
-    public readonly ASSET_REMOVE = 'asset_remove';
-    public readonly ASSET_CHECKOUT = 'asset_checkout';
-    public readonly ASSET_RENAME = 'asset_rename';
-    public readonly ASSET_CREATE = 'asset_create';
-    public readonly ASSET_UNDO_CHECKOUT = 'asset_undo_checkout';
-    public readonly ASSET_CREATE_BY_COPY = 'asset_create_by_copy';
-    public readonly ASSET_UPDATE_METADATA = 'asset_update_metadata';
-    public readonly ASSET_CREATE_FROM_FILESTORE_RESCUE = 'asset_create_from_filestore_rescue';
-    public readonly AUTHKEY_CREATE = 'authkey_create';
-    public readonly ASSET_CREATE_FROM_VERSION = 'asset_create_from_version';
-    public readonly AUTHKEY_REMOVE = 'authkey_remove';
-    public readonly ASSET_MOVE = 'asset_move';
-    public readonly FOLDER_CREATE = 'folder_create';
-    public readonly ASSET_PROMOTE = 'asset_promote';
-    public readonly FOLDER_REMOVE = 'folder_remove';
+    private serverInstance: http.Server | null = null;
+
+    public static readonly ASSET_CHECKIN = 'asset_checkin';
+    public static readonly ASSET_REMOVE = 'asset_remove';
+    public static readonly ASSET_CHECKOUT = 'asset_checkout';
+    public static readonly ASSET_RENAME = 'asset_rename';
+    public static readonly ASSET_CREATE = 'asset_create';
+    public static readonly ASSET_UNDO_CHECKOUT = 'asset_undo_checkout';
+    public static readonly ASSET_CREATE_BY_COPY = 'asset_create_by_copy';
+    public static readonly ASSET_UPDATE_METADATA = 'asset_update_metadata';
+    public static readonly ASSET_CREATE_FROM_FILESTORE_RESCUE = 'asset_create_from_filestore_rescue';
+    public static readonly AUTHKEY_CREATE = 'authkey_create';
+    public static readonly ASSET_CREATE_FROM_VERSION = 'asset_create_from_version';
+    public static readonly AUTHKEY_REMOVE = 'authkey_remove';
+    public static readonly ASSET_MOVE = 'asset_move';
+    public static readonly FOLDER_CREATE = 'folder_create';
+    public static readonly ASSET_PROMOTE = 'asset_promote';
+    public static readonly FOLDER_REMOVE = 'folder_remove';
 
     constructor(private readonly config: WebhookConfig) {
     }
 
     public listen(successHandler: WebhookSuccessHandler, errorHandler: WebhookErrorHandler): void {
-        const server = express();
+        const app = express();
 
-        // Use raw body middleware to validate the HMAC
-        server.use(
+        app.use(
             express.raw({
                 type: '*/*',
                 limit: '1mb',
             })
         );
 
-        server.post('/', (req: Request, res: Response, next: NextFunction) => {
+        app.post('/', (req: Request, res: Response, next: NextFunction) => {
             const signature = req.header('x-hook-signature') ?? '';
             const rawBody = req.body as Buffer;
 
-            // Respond immediately to avoid timeout on Assets side
-            res.status(200).end();
+            res.status(200).end(); // respond immediately
 
             try {
                 if (!this.validateSignature(signature, rawBody)) {
@@ -59,8 +59,25 @@ export class AssetsWebhook {
             }
         });
 
-        server.listen(this.config.port, this.config.bindTo, () => {
-            console.info(`Listening for webhook connections on ${this.config.bindTo}:${this.config.port}`);
+        this.serverInstance = app.listen(this.config.port, this.config.bindTo, () => {
+            console.info(`Webhook listener started on ${this.config.bindTo}:${this.config.port}`);
+        });
+    }
+
+    public stop(): Promise<void> {
+        return new Promise((resolve, reject) => {
+            if (this.serverInstance) {
+                this.serverInstance.close((err) => {
+                    if (err) {
+                        return reject(err);
+                    }
+                    console.info('Webhook listener stopped.');
+                    this.serverInstance = null;
+                    resolve();
+                });
+            } else {
+                resolve();
+            }
         });
     }
 
