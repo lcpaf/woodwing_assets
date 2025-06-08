@@ -1,4 +1,3 @@
-```markdown
 # WoodWing Assets TypeScript Client
 
 This library provides a fully-typed TypeScript interface for interacting with the [WoodWing Assets Server](https://www.woodwing.com/products/woodwing-assets), including asset management, metadata updates, history, authentication key management, and administrative operations such as webhook registration.
@@ -159,5 +158,4 @@ src/
 
 ## 🔐 License
 
-MIT — free to use, modify, and improve.
-```
+This project is licensed under the [MIT License](./LICENSE) © 2025 Luis Ferreira.
