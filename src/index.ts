@@ -1,7 +1,5 @@
-import {AssetsServer} from "./AssetsServer";
-import {AssetsServerAdmin} from "./AssetsServerAdmin";
-import {AssetsWebhook} from "./AssetsWebhook";
-import {SearchResponse} from "./SearchResponse";
-import {AssetsBrowserClient} from "./AssetsBrowserClient";
-
-export {AssetsServer, AssetsServerAdmin, AssetsWebhook, SearchResponse, AssetsBrowserClient};
+export { AssetsServer } from './AssetsServer';
+export { AssetsServerAdmin } from './AssetsServerAdmin';
+export { AssetsWebhook } from './AssetsWebhook';
+export { SearchResponse } from './interfaces/SearchResponse';
+export { AssetsBrowserClient } from './AssetsBrowserClient';

@@ -1,10 +1,6 @@
-import Promise = require("bluebird");
+import {AssetsServerBase} from './AssetsServerBase';
 
 export class AssetsBrowserClient {
-
-    private apiClient: any;
-
-    constructor(apiClient: any) {
-        this.apiClient = apiClient;
+    constructor(private readonly apiClient: AssetsServerBase) {
     }
 }

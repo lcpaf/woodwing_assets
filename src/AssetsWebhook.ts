@@ -1,19 +1,11 @@
-import {WebhookConfig} from "./WebhookConfig";
+import express, {NextFunction, Request, Response} from 'express';
+import crypto from 'crypto';
+import {WebhookConfig} from './WebhookConfig';
 
-import express = require('express');
-import {NextFunction, Request, Response} from "express";
+type WebhookPayload = Record<string, any>;
 
-import compare = require('safe-compare');
-import crypto = require('crypto');
-
-// import createLogger = require('logger');
-// const logger = createLogger.createLogger();
-
-type WebhookSuccessHandler =
-    (request: object) => void
-
-type WebhookErrorHandler =
-    (error: string) => void
+type WebhookSuccessHandler = (request: WebhookPayload) => void;
+type WebhookErrorHandler = (error: string) => void;
 
 export class AssetsWebhook {
     public readonly ASSET_CHECKIN = 'asset_checkin';
@@ -33,60 +25,59 @@ export class AssetsWebhook {
     public readonly ASSET_PROMOTE = 'asset_promote';
     public readonly FOLDER_REMOVE = 'folder_remove';
 
-
-    private readonly config: WebhookConfig;
-
-
-    constructor(config: WebhookConfig) {
-        this.config = config;
+    constructor(private readonly config: WebhookConfig) {
     }
 
-    public listen = (successHandler: WebhookSuccessHandler, errorHandler: WebhookErrorHandler) => {
-
-        const _this = this;
-
+    public listen(successHandler: WebhookSuccessHandler, errorHandler: WebhookErrorHandler): void {
         const server = express();
-        server.listen(this.config.port, this.config.bindTo)
+
+        // Use raw body middleware to validate the HMAC
+        server.use(
+            express.raw({
+                type: '*/*',
+                limit: '1mb',
+            })
+        );
+
         server.post('/', (req: Request, res: Response, next: NextFunction) => {
+            const signature = req.header('x-hook-signature') ?? '';
+            const rawBody = req.body as Buffer;
 
-            // send response  so that Assets doesn't have to wait for the processing
-            res.status(200);
-            res.end();
+            // Respond immediately to avoid timeout on Assets side
+            res.status(200).end();
 
-            const signature: string = req.header('x-hook-signature') ?? '';
-            const chunks: any = [];
-
-            req.on('data', chunk => {
-                chunks.push(chunk)
-            });
-            req.on('end', () => {
-                const data = Buffer.concat(chunks);
-
-                // validate the webhook signature
-                if (!_this.validateSignature(signature, data)) {
+            try {
+                if (!this.validateSignature(signature, rawBody)) {
                     return errorHandler('Invalid webhook signature. Webhook discarded.');
                 }
 
-                try {
-                    return successHandler(JSON.parse(data.toString()));
-                } catch (error: any) {
-                    // logger.error(error);
-                    return errorHandler(error);
-                }
-            });
-            req.on('error', error => {
-                errorHandler(error.message);
-                return next(error.message)
-            });
-
+                const payload: WebhookPayload = JSON.parse(rawBody.toString());
+                successHandler(payload);
+            } catch (err: any) {
+                errorHandler(`Webhook processing error: ${err.message || err}`);
+                next(err);
+            }
         });
-        // logger.info('Listening for webhook connections on port ' + this.config.port);
+
+        server.listen(this.config.port, this.config.bindTo, () => {
+            console.info(`Listening for webhook connections on ${this.config.bindTo}:${this.config.port}`);
+        });
     }
 
-    private validateSignature = (signature: string, data: any) => {
+    private validateSignature(signature: string, data: Buffer): boolean {
         const hmac = crypto.createHmac('sha256', this.config.secretToken);
         hmac.update(data);
         const digest = hmac.digest('hex');
-        return compare(digest, signature);
-    };
+
+        const bufA = Buffer.from(digest, 'utf8');
+        const bufB = Buffer.from(signature, 'utf8');
+
+        if (bufA.length !== bufB.length) return false;
+
+        try {
+            return crypto.timingSafeEqual(bufA, bufB);
+        } catch {
+            return false;
+        }
+    }
 }

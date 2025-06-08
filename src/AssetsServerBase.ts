@@ -1,18 +1,18 @@
-import {AssetsConfig} from "./AssetsConfig";
-import {AssetsLogin} from "./AssetsLogin";
-import Promise = require("bluebird");
-import request = require('request');
-import http = require('http');
-import https = require('https');
-import fs = require('fs');
+import axios, {AxiosInstance, AxiosRequestConfig, Method} from 'axios';
+import FormData from 'form-data';
+import * as fs from 'fs';
+import https from 'https';
+import {AssetsConfig} from './AssetsConfig';
+import {AssetsLogin} from './AssetsLogin';
 
 export class AssetsServerBase {
-
     protected readonly config: AssetsConfig;
     private authToken: string | null = null;
     private authTimestamp: Date | null = null;
-    private tokenValidity: number;
+    private readonly tokenValidity: number;
+    private readonly axiosInstance: AxiosInstance;
 
+    // Replacement policies
     public readonly FOLDER_REPLACE_POLICY_AUTO_RENAME = 'AUTO_RENAME';
     public readonly FOLDER_REPLACE_POLICY_MERGE = 'MERGE';
     public readonly FOLDER_REPLACE_POLICY_THROW_EXCEPTION = 'THROW_EXCEPTION';
@@ -26,168 +26,134 @@ export class AssetsServerBase {
 
     constructor(config: AssetsConfig) {
         this.config = config;
-        this.authToken = null;
-        this.tokenValidity = ((config.tokenValidityInMinutes ?? 30) - 2) * 60 * 1000
-    }
+        this.tokenValidity = ((config.tokenValidityInMinutes ?? 30) - 2) * 60 * 1000;
 
-    public get = (service: string, form: object = {}) => this.call(service, 'GET', form);
-
-    public download = (service: string, file: string) => this.call(service, 'GET', {}, file);
-
-    public post = (service: string, form: object = {}, json: boolean = false) => this.call(service, 'POST', form, null, json);
-
-    public put = (service: string, form: object = {}, json: boolean = false) => this.call(service, 'PUT', form, null, json);
-
-    public delete = (service: string, form: object = {}) => this.call(service, 'DELETE', form);
-
-    private call(service: string, method: string, form: object = {}, file: string | null = null, json: boolean = false) {
-        const _this = this;
-        return new Promise((resolve: any, reject: any) => {
-
-            // invalidate token if X-2 minutes have passed. (the default Assets token validity is 30 minutes)
-            if (!_this.authTimestamp || new Date().getTime() - _this.authTimestamp.getTime() > _this.tokenValidity) {
-                _this.authToken = null;
-            }
-
-            if (null === _this.authToken) {
-
-                // first authenticate then call
-                return _this.authenticate().then((data) => {
-                    return _this.callSecondary(service, method, form, file, json);
-                }).then((authResult: any) => {
-                    resolve(authResult);
-                }).catch((err: Error) => {
-                    reject(err);
-                });
-            } else {
-
-                // first call then authenticate if an 401 is received
-                _this.callSecondary(service, method, form, file, json).then((result: any) => {
-                    if (result.errorcode === 401) { // Unauthorized
-                        return _this.authenticate().then((data) => {
-                            return _this.callSecondary(service, method, form, file, json);
-                        }).then((authResult: any) => {
-                            resolve(authResult);
-                        }).catch((err: Error) => {
-                            reject(err);
-                        });
-                    }
-
-                    return resolve(result);
-                }).catch((err: Error) => {
-                    reject(err);
-                })
-            }
+        this.axiosInstance = axios.create({
+            baseURL: config.serverUrl,
+            httpsAgent: new https.Agent({rejectUnauthorized: config.rejectUnauthorized}),
         });
     }
 
-    private authenticate = () => {
-        const _this = this;
-
-        return new Promise((resolve, reject) => {
-            _this.callSecondary('/services/apilogin', 'POST', {
-                username: _this.config.username,
-                password: _this.config.password,
-            }).then((data: AssetsLogin) => {
-                if (data.loginSuccess) {
-                    _this.authToken = data.authToken;
-                    _this.authTimestamp = new Date();
-                    return resolve(data);
-                }
-                return reject(data.loginFaultMessage);
-            }).catch((err: Error) => {
-                return reject(err);
-            })
-        });
+    // Generic verbs
+    public get(service: string, params: Record<string, any> = {}) {
+        return this.call(service, 'GET', {params});
     }
 
-    private callSecondary = (service: string, method: string, form: object = {}, file: string | null = null, json: boolean = false) => {
-        const _this = this;
-        return new Promise((resolve: any, reject: any) => {
-
-            const options: any = {
-                method,
-                rejectUnauthorized: _this.config.rejectUnauthorized,
-                url: _this.config.serverUrl + service,
-                qs: {},
-                formData: {},
-                // json: {},
-                jar: true,
-                auth: {
-                    bearer: (_this.authToken !== '') ? _this.authToken as string : 'something_random' // do not send an empty string, so the "Unauthorized" is not received. 400 is received instead
-                }
-            };
-
-            switch (method) {
-                case 'POST':
-                    if (json) {
-                        options.json = form;
-                        delete options.formData;
-                        delete options.qs;
-                    } else {
-                        options.formData = form;
-                        delete options.json;
-                        delete options.qs;
-                    }
-                    break;
-                case 'PUT':
-                    options.json = form;
-                    delete options.formData;
-                    delete options.qs;
-                    break;
-                case 'GET':
-                case 'DELETE':
-                    options.qs = form;
-                    delete options.json;
-                    delete options.formData;
-                    break;
-            }
-
-
-            if (null !== file) {
-                const fileHandle = fs.createWriteStream(file);
-
-                const requestHandler = options.url.startsWith('https') ? https : http;
-                requestHandler.get(options.url, {'headers': {'authorization': 'Bearer ' + options.auth.bearer}}, (response) => {
-                    response.pipe(fileHandle);
-                    fileHandle.on('finish', () => {
-                        return resolve(file)
-                    }).on('error', (err) => {
-                        return reject(err)
-                    })
-                })
-            } else {
-
-                request(options, (err: any, response: any, body: any) => {
-                    if (err) {
-                        return reject(err)
-                    }
-
-                    body = _this.parseBody(body);
-
-                    if (body && body.errorcode) {
-                        response.statusCode = body.errorcode;
-                        response.statusMessage = body.message;
-                    }
-
-                    if (response.statusCode === 401) {
-                        return resolve(body);
-                    } else if ((response.statusCode < 200 || response.statusCode > 299) && (response.statusCode !== 302)) {
-                        return reject(body);
-                    } else {
-                        return resolve(body);
-                    }
-                });
-            }
-        });
+    public post(service: string, data: Record<string, any> = {}, sendAsJson = false) {
+        return this.call(service, 'POST', {data}, sendAsJson);
     }
 
-    private parseBody = (result: any) => {
-        try {
-            const body = (result.body) ? result.body : result;
-            return (typeof body === 'string') ? JSON.parse(body) : body;
-        } catch (e) {
-            return result;
+    public put(service: string, data: Record<string, any> = {}, sendAsJson = false) {
+        return this.call(service, 'PUT', {data}, sendAsJson);
+    }
+
+    public delete(service: string, params: Record<string, any> = {}) {
+        return this.call(service, 'DELETE', {params});
+    }
+
+    public download(service: string, filePath: string) {
+        return this.downloadFile(service, filePath);
+    }
+
+    // Main wrapper
+    private async call(
+        service: string,
+        method: Method,
+        options: AxiosRequestConfig,
+        sendAsJson = true
+    ): Promise<any> {
+        if (!this.authTimestamp || Date.now() - this.authTimestamp.getTime() > this.tokenValidity) {
+            this.authToken = null;
         }
+
+        if (!this.authToken) {
+            await this.authenticate();
+        }
+
+        try {
+            return await this.callWithAuth(service, method, options, sendAsJson);
+        } catch (err: any) {
+            if (err.response?.status === 401) {
+                await this.authenticate();
+                return await this.callWithAuth(service, method, options, sendAsJson);
+            }
+            throw err;
+        }
+    }
+
+    // Request builder with auth
+    private async callWithAuth(
+        service: string,
+        method: Method,
+        options: AxiosRequestConfig,
+        sendAsJson: boolean
+    ): Promise<any> {
+        const config: AxiosRequestConfig = {
+            method,
+            url: service,
+            ...options,
+            headers: {
+                ...(options.headers || {}),
+                Authorization: `Bearer ${this.authToken ?? 'placeholder'}`,
+            },
+        };
+
+        // Handle multipart/form-data if needed
+        if (!sendAsJson && (method === 'POST' || method === 'PUT') && config.data) {
+            const formData = new FormData();
+            for (const key in config.data) {
+                formData.append(key, config.data[key]);
+            }
+            config.data = formData;
+            config.headers = {
+                ...config.headers,
+                ...formData.getHeaders(),
+            };
+        }
+
+        const response = await this.axiosInstance.request(config);
+        const data = response.data;
+
+        if (data && typeof data === 'object' && 'errorcode' in data) {
+            const error = new Error(data.message || 'Unknown error from Assets Server');
+            (error as any).errorcode = data.errorcode;
+            (error as any).errorname = data.errorname;
+            throw error;
+        }
+
+        return data;
+    }
+
+    // Token handshake
+    private async authenticate(): Promise<void> {
+        const form = new FormData();
+        form.append('username', this.config.username);
+        form.append('password', this.config.password);
+
+        const response = await this.axiosInstance.post<AssetsLogin>('/services/apilogin', form, {
+            headers: form.getHeaders(),
+        });
+
+        if (response.data.loginSuccess) {
+            this.authToken = response.data.authToken;
+            this.authTimestamp = new Date();
+        } else {
+            throw new Error(response.data.loginFaultMessage || 'Login failed');
+        }
+    }
+
+    // For file streams (download)
+    private async downloadFile(service: string, filePath: string): Promise<string> {
+        const response = await this.axiosInstance.get(service, {
+            headers: {Authorization: `Bearer ${this.authToken}`},
+            responseType: 'stream',
+        });
+
+        const writer = fs.createWriteStream(filePath);
+        return new Promise((resolve, reject) => {
+            response.data.pipe(writer);
+            writer.on('finish', () => resolve(filePath));
+            writer.on('error', reject);
+        });
     }
 }
