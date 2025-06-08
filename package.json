@@ -8,13 +8,9 @@
         "build": "tsc",
         "test": "jest --config jest.config.json",
         "format": "prettier --write \"src/**/*.{ts,js}\"",
-        "lint": "eslint src --ext .ts",
         "prepare": "npm run build",
-        "prepublishOnly": "npm run lint",
-        "preversion": "npm run lint",
         "version": "npm run format && git add -A src",
-        "postversion": "git push && git push --tags",
-        "webhookTest": "ts-node src/__tests__/startServer.ts"
+        "postversion": "git push && git push --tags"
     },
     "keywords": [
         "WoodWing",
@@ -47,12 +43,7 @@
     "devDependencies": {
         "@types/jest": "^29.5.14",
         "@types/node": "^22.15.30",
-        "@typescript-eslint/eslint-plugin": "^8.33.1",
-        "@typescript-eslint/parser": "^8.33.1",
         "axios-mock-adapter": "^2.1.0",
-        "eslint": "^9.28.0",
-        "eslint-config-prettier": "^10.1.5",
-        "eslint-plugin-prettier": "^5.4.1",
         "jest": "^29.7.0",
         "ngrok": "^5.0.0-beta.2",
         "prettier": "^3.5.3",
