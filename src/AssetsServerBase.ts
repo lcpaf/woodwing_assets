@@ -144,8 +144,29 @@ export class AssetsServerBase {
 
     // For file streams (download)
     private async downloadFile(service: string, filePath: string): Promise<string> {
+        // Ensure authentication is valid
+        if (!this.authTimestamp || Date.now() - this.authTimestamp.getTime() > this.tokenValidity) {
+            this.authToken = null;
+        }
+
+        if (!this.authToken) {
+            await this.authenticate();
+        }
+
+        try {
+            return await this.downloadFileWithAuth(service, filePath);
+        } catch (err: any) {
+            if (err.response?.status === 401) {
+                await this.authenticate();
+                return await this.downloadFileWithAuth(service, filePath);
+            }
+            throw err;
+        }
+    }
+
+    private async downloadFileWithAuth(service: string, filePath: string): Promise<string> {
         const response = await this.axiosInstance.get(service, {
-            headers: {Authorization: `Bearer ${this.authToken}`},
+            headers: { Authorization: `Bearer ${this.authToken}` },
             responseType: 'stream',
         });
 
