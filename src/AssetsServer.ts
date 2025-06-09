@@ -1,5 +1,5 @@
 import {AssetsServerBase} from './AssetsServerBase';
-import {ReadStream} from 'fs';
+import {createReadStream, ReadStream, writeFileSync} from 'fs';
 import * as tmp from 'tmp';
 import {SearchResponse} from './interfaces/SearchResponse';
 import {SearchResult} from './interfaces/SearchResult';
@@ -11,7 +11,6 @@ import {CreateAuthKeyResponse} from "./interfaces/CreateAuthKeyResponse";
 import {LocalizationResponse} from "./interfaces/LocalizationResponse";
 import {ProfileResponse} from "./interfaces/ProfileResponse";
 import {HistoryResponse} from "./interfaces/HistoryResponse";
-import {Readable} from "stream";
 
 export class AssetsServer extends AssetsServerBase {
     private tmpDir: tmp.DirResult | null = null;
@@ -261,7 +260,7 @@ export class AssetsServer extends AssetsServerBase {
         };
 
         if (Filedata) {
-            form.Filedata = Buffer.isBuffer(Filedata) ? Readable.from(Filedata) : Filedata;
+            form.Filedata = this.prepareFiledataStream(Filedata);
         }
 
         if (metadata) {
@@ -336,7 +335,7 @@ export class AssetsServer extends AssetsServerBase {
         const form: { [k: string]: any } = {metadataToReturn};
 
         if (Filedata) {
-            form.Filedata = Buffer.isBuffer(Filedata) ? Readable.from(Filedata) : Filedata;
+            form.Filedata = this.prepareFiledataStream(Filedata);
         }
 
         if (metadata) {
@@ -519,5 +518,17 @@ export class AssetsServer extends AssetsServerBase {
         if (!this.tmpDir) {
             this.tmpDir = tmp.dirSync();
         }
+    }
+
+    private prepareFiledataStream(filedata: Buffer | ReadStream): ReadStream {
+        if (Buffer.isBuffer(filedata)) {
+            this.ensureTmpDir(); // make sure tmpDir exists
+            const tmpPath = tmp.tmpNameSync({dir: this.tmpDir!.name});
+            writeFileSync(tmpPath, filedata);
+            return createReadStream(tmpPath);
+        }
+
+        // already a ReadStream
+        return filedata;
     }
 }
