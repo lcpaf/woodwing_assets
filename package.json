@@ -1,6 +1,6 @@
 {
     "name": "woodwing-assets",
-    "version": "2.0.1",
+    "version": "2.0.2",
     "description": "TypeScript client for interacting with the WoodWing Assets Server API",
     "main": "lib/index.js",
     "types": "lib/index.d.ts",
@@ -38,6 +38,7 @@
         "axios": "^1.9.0",
         "express": "^5.1.0",
         "form-data": "^4.0.3",
+        "stream": "^0.0.3",
         "tmp": "^0.2.3"
     },
     "devDependencies": {

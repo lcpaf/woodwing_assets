@@ -11,6 +11,7 @@ import {CreateAuthKeyResponse} from "./interfaces/CreateAuthKeyResponse";
 import {LocalizationResponse} from "./interfaces/LocalizationResponse";
 import {ProfileResponse} from "./interfaces/ProfileResponse";
 import {HistoryResponse} from "./interfaces/HistoryResponse";
+import {Readable} from "stream";
 
 export class AssetsServer extends AssetsServerBase {
     private tmpDir: tmp.DirResult | null = null;
@@ -244,7 +245,7 @@ export class AssetsServer extends AssetsServerBase {
 
     public async update(
         id: string,
-        Filedata: ReadStream | null = null,
+        Filedata: ReadStream | Buffer | null = null,
         metadata: object | null = null,
         metadataToReturn: string = 'all',
         clearCheckoutState: boolean = true,
@@ -259,8 +260,13 @@ export class AssetsServer extends AssetsServerBase {
             keepMetadata: String(keepMetadata),
         };
 
-        if (Filedata) form.Filedata = Filedata;
-        if (metadata) form.metadata = JSON.stringify(metadata);
+        if (Filedata) {
+            form.Filedata = Buffer.isBuffer(Filedata) ? Readable.from(Filedata) : Filedata;
+        }
+
+        if (metadata) {
+            form.metadata = JSON.stringify(metadata);
+        }
 
         return this.post('/services/update', form);
     }
@@ -323,14 +329,19 @@ export class AssetsServer extends AssetsServerBase {
     }
 
     public async create(
-        Filedata: ReadStream | null = null,
+        Filedata: ReadStream | Buffer | null = null,
         metadata: object | null = null,
         metadataToReturn: string = 'all',
     ): Promise<SearchResult> {
         const form: { [k: string]: any } = {metadataToReturn};
 
-        if (Filedata) form.Filedata = Filedata;
-        if (metadata) form.metadata = JSON.stringify(metadata);
+        if (Filedata) {
+            form.Filedata = Buffer.isBuffer(Filedata) ? Readable.from(Filedata) : Filedata;
+        }
+
+        if (metadata) {
+            form.metadata = JSON.stringify(metadata);
+        }
 
         const result = await this.post('/services/create', form);
         return result as SearchResult;
