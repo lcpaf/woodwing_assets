@@ -1,34 +1,35 @@
 import {AssetsServerBase} from './AssetsServerBase';
-import {WebhookCreatePayload} from "./interfaces/WebhookCreatePayload";
-import {WebhookCreateResponse} from "./interfaces/WebhookCreateResponse";
+import {WebhookCreateRequest} from './interfaces/Request/Admin';
+import {WebhookCreateResponse} from './interfaces/Response/Admin';
 
-export class AssetsServerAdmin extends AssetsServerBase {
-    public async currentState(): Promise<unknown> {
-        return this.post('/controller/admin/activation/currentState');
-    }
+export class AssetsServerAdmin {
+  constructor(private base: AssetsServerBase) {}
 
-    public async activeUsers(): Promise<unknown> {
-        return this.get('/private-api/system/active-users');
-    }
+  public async currentState(): Promise<unknown> {
+    return this.base.post('/controller/admin/activation/currentState');
+  }
 
-    public async createWebhook(payload: WebhookCreatePayload): Promise<WebhookCreateResponse> {
-        return this.post('/services/admin/webhook/', payload, true);
-    }
+  public async activeUsers(): Promise<unknown> {
+    return this.base.get('/private-api/system/active-users');
+  }
 
-    public async updateWebhook(webhookId: string, payload: WebhookCreatePayload): Promise<WebhookCreateResponse> {
-        return this.put(`/services/admin/webhook/${webhookId}`, payload, true);
-    }
+  public async createWebhook(payload: WebhookCreateRequest): Promise<WebhookCreateResponse> {
+    return this.base.post('/services/admin/webhook/', payload, true);
+  }
 
-    public async disabledWebhook(webhookId: string): Promise<WebhookCreateResponse> {
-        return this.put(`services/admin/webhook/${webhookId}/disable`);
-    }
+  public async updateWebhook(webhookId: string, payload: WebhookCreateRequest): Promise<WebhookCreateResponse> {
+    return this.base.put(`/services/admin/webhook/${webhookId}`, payload, true);
+  }
 
+  public async disabledWebhook(webhookId: string): Promise<WebhookCreateResponse> {
+    return this.base.put(`services/admin/webhook/${webhookId}/disable`);
+  }
 
-    public async enabledWebhook(webhookId: string): Promise<WebhookCreateResponse> {
-        return this.put(`services/admin/webhook/${webhookId}/enable`);
-    }
+  public async enabledWebhook(webhookId: string): Promise<WebhookCreateResponse> {
+    return this.base.put(`services/admin/webhook/${webhookId}/enable`);
+  }
 
-    public async deleteWebhook(webhookId: string): Promise<void> {
-        return this.delete(`/services/admin/webhook/${webhookId}`);
-    }
+  public async deleteWebhook(webhookId: string): Promise<void> {
+    return this.base.delete(`/services/admin/webhook/${webhookId}`);
+  }
 }

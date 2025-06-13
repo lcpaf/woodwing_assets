@@ -1,534 +1,575 @@
-import {AssetsServerBase} from './AssetsServerBase';
 import {createReadStream, ReadStream, writeFileSync} from 'fs';
 import * as tmp from 'tmp';
-import {SearchResponse} from './interfaces/SearchResponse';
-import {SearchResult} from './interfaces/SearchResult';
-import {BrowseResult} from './interfaces/BrowseResult';
-import {ProcessResponse} from './interfaces/ProcessResponse';
-import {ProcessStartResponse} from './interfaces/ProcessStartResponse';
-import {CheckoutResponse} from './interfaces/CheckoutResponse';
-import {CreateAuthKeyResponse} from "./interfaces/CreateAuthKeyResponse";
-import {LocalizationResponse} from "./interfaces/LocalizationResponse";
-import {ProfileResponse} from "./interfaces/ProfileResponse";
-import {HistoryResponse} from "./interfaces/HistoryResponse";
+
+import {AssetsServerBase} from './AssetsServerBase';
+import {AssetsServerAdmin} from './AssetsServerAdmin';
+import {AssetsServerAPI} from './AssetsServerAPI';
+import {AssetsConfig} from './AssetsConfig';
+import {BrowseResponse, CheckoutResponse, CreateAuthKeyResponse, HistoryResponse, HitResponse, LocalizationResponse, ProcessResponse, ProcessStartResponse, ProfileResponse, SearchResponse} from './interfaces/Response/Service';
+import {BrowseRequest, CheckoutRequest, CollectionRequest, CopyRequest, CreateAuthKeyRequest, CreateFolderRequest, CreateRelationRequest, CreateRequest, DownloadFromIdRequest, HistoryRequest, LocalizationRequest, LogUsageRequest, MetadataReportRequest, MoveRequest, PromoteRequest, RemoveRelationRequest, RemoveRequest, RevokeAuthKeysRequest, SearchRequest, SendEmailRequest, UndoCheckoutRequest, UpdateAuthKeyRequest, UpdateBulkRequest, UpdateRequest} from './interfaces/Request/Service';
 
 export class AssetsServer extends AssetsServerBase {
-    private tmpDir: tmp.DirResult | null = null;
+  private tmpDir: tmp.DirResult | null = null;
 
-    public async browse(
-        path: string,
-        fromRoot: string | null = null,
-        includeFolders: boolean = true,
-        includeAssets: boolean = true,
-        includeExtensions: string | null = null,
-    ): Promise<BrowseResult[]> {
-        const params: Record<string, string> = {
-            path,
-            includeFolders: String(includeFolders),
-            includeAssets: String(includeAssets),
-        };
+  public readonly admin: AssetsServerAdmin;
+  public readonly api: AssetsServerAPI;
 
-        if (fromRoot) params.fromRoot = fromRoot;
-        if (includeExtensions) params.includeExtensions = includeExtensions;
+  constructor(config: AssetsConfig) {
+    super(config);
+    this.admin = new AssetsServerAdmin(this);
+    this.api = new AssetsServerAPI(this);
+  }
 
-        return await this.post('/services/browse', params);
+  public async browse(req: BrowseRequest): Promise<BrowseResponse[]> {
+    const params: Record<string, string> = {
+      path: req.path,
+    };
+    if (typeof req.includeFolders !== 'undefined') {
+      params.includeFolders = String(req.includeFolders);
+    }
+    if (typeof req.includeAssets !== 'undefined') {
+      params.includeAssets = String(req.includeAssets);
+    }
+    if (typeof req.fromRoot !== 'undefined') {
+      params.fromRoot = req.fromRoot;
+    }
+    if (typeof req.includeExtensions !== 'undefined') {
+      params.includeExtensions = req.includeExtensions;
+    }
+    return this.post('/services/browse', params);
+  }
+
+  public async checkout(req: CheckoutRequest): Promise<CheckoutResponse> {
+    return await this.post(`/services/checkout/${req.assetId}`, {
+      download: 'false',
+    });
+  }
+
+  public async undoCheckout(req: UndoCheckoutRequest): Promise<void> {
+    return await this.post(`/services/undocheckout/${req.assetId}`);
+  }
+
+  public async copy(req: CopyRequest & {}): Promise<ProcessResponse>;
+  public async copy(req: CopyRequest & { asyncFlag?: false }): Promise<ProcessResponse>;
+  public async copy(req: CopyRequest & { asyncFlag: true }): Promise<ProcessStartResponse>;
+
+  public async copy(req: CopyRequest): Promise<ProcessResponse | ProcessStartResponse> {
+    const form: Record<string, string> = {
+      source: req.source,
+      target: req.target,
+    };
+
+    if (typeof req.folderReplacePolicy !== 'undefined') {
+      form.folderReplacePolicy = req.folderReplacePolicy;
     }
 
-    public async checkout(
-        assetId: string,
-    ): Promise<CheckoutResponse> {
-        return await this.post(`/services/checkout/${assetId}`, {
-            download: 'false',
-        });
+    if (typeof req.fileReplacePolicy !== 'undefined') {
+      form.fileReplacePolicy = req.fileReplacePolicy;
     }
 
-    public async copy(
-        source: string,
-        target: string,
-        folderReplacePolicy?: string,
-        fileReplacePolicy?: string,
-        filterQuery?: string,
-        flattenFolders?: boolean,
-        asyncFlag?: false
-    ): Promise<ProcessResponse>;
-
-    public async copy(
-        source: string,
-        target: string,
-        folderReplacePolicy?: string,
-        fileReplacePolicy?: string,
-        filterQuery?: string,
-        flattenFolders?: boolean,
-        asyncFlag?: true
-    ): Promise<ProcessStartResponse>;
-
-    public async copy(
-        source: string,
-        target: string,
-        folderReplacePolicy: string = AssetsServerBase.FOLDER_REPLACE_POLICY_AUTO_RENAME,
-        fileReplacePolicy: string = AssetsServerBase.FILE_REPLACE_POLICY_AUTO_RENAME,
-        filterQuery: string = '',
-        flattenFolders: boolean = false,
-        asyncFlag: boolean = false
-    ): Promise<ProcessResponse | ProcessStartResponse> {
-        return this.post('/services/copy', {
-            source,
-            target,
-            folderReplacePolicy,
-            fileReplacePolicy,
-            filterQuery,
-            flattenFolders: String(flattenFolders),
-            async: String(asyncFlag),
-        });
+    if (typeof req.filterQuery !== 'undefined') {
+      form.filterQuery = req.filterQuery;
     }
 
-    public async createAuthKey(
-        subject: string,
-        validUntil: Date,
-        assetIds: null | string[] = null,
-        description: string | null = null,
-        downloadOriginal: boolean = false,
-        downloadPreview: boolean = false,
-        requestApproval: boolean = false,
-        requestUpload: boolean = false,
-        containerId: string | null = null,
-        containerIds: string[] = [],
-        importFolderPath: string | null = null,
-        notifyEmail: string | null = null,
-        sort: string[] = [],
-        downloadPresetIds: string[] = [],
-        watermarked: boolean = false
-    ): Promise<CreateAuthKeyResponse> {
-        const form: Record<string, any> = {
-            subject,
-            validUntil: validUntil.toISOString(),
-            downloadOriginal: String(downloadOriginal),
-            downloadPreview: String(downloadPreview),
-            requestApproval: String(requestApproval),
-            requestUpload: String(requestUpload),
-            watermarked: String(watermarked),
-        };
-
-        if (assetIds) form.assetIds = assetIds.join(',');
-        if (containerIds.length > 0) form.containerIds = containerIds.join(',');
-        if (downloadPresetIds.length > 0) form.downloadPresetIds = downloadPresetIds.join(',');
-        if (sort.length > 0) form.sort = sort.join(',');
-        if (description) form.description = description;
-        if (containerId) form.containerId = containerId;
-        if (importFolderPath) form.importFolderPath = importFolderPath;
-        if (notifyEmail) form.notifyEmail = notifyEmail;
-
-        return this.post('/services/createAuthKey', form);
+    if (typeof req.flattenFolders !== 'undefined') {
+      form.flattenFolders = String(req.flattenFolders);
     }
 
-    public async updateAuthKey(
-        key: string,
-        subject: string,
-        validUntil: Date,
-        description: string | null = null,
-        downloadOriginal: boolean = false,
-        downloadPreview: boolean = false,
-        requestApproval: boolean = false,
-        requestUpload: boolean = false,
-        containerId: string | null = null,
-        containerIds: string[] = [],
-        importFolderPath: string | null = null,
-        notifyEmail: string | null = null,
-        sort: string[] = [],
-        downloadPresetIds: string[] = []
-    ): Promise<void> {
-        const form: Record<string, any> = {
-            key,
-            subject,
-            validUntil: validUntil.toISOString(),
-            downloadOriginal: String(downloadOriginal),
-            downloadPreview: String(downloadPreview),
-            requestApproval: String(requestApproval),
-            requestUpload: String(requestUpload),
-        };
-
-        if (containerIds.length > 0) form.containerIds = containerIds.join(',');
-        if (downloadPresetIds.length > 0) form.downloadPresetIds = downloadPresetIds.join(',');
-        if (sort.length > 0) form.sort = sort.join(',');
-        if (description) form.description = description;
-        if (containerId) form.containerId = containerId;
-        if (importFolderPath) form.importFolderPath = importFolderPath;
-        if (notifyEmail) form.notifyEmail = notifyEmail;
-
-        return this.post('/services/updateAuthKey', form);
+    if (typeof req.asyncFlag !== 'undefined') {
+      form.async = String(req.asyncFlag);
     }
 
-    public async revokeAuthKeys(
-        keys: string[],
-    ): Promise<void> {
-        const form: Record<string, any> = {
-            keys: keys?.join(),
-        };
-        return this.post('/services/revokeAuthKeys', form);
+    return this.post('/services/copy', form);
+  }
+
+  public async createAuthKey(req: CreateAuthKeyRequest): Promise<CreateAuthKeyResponse> {
+    const form: Record<string, any> = {
+      subject: req.subject,
+      validUntil: req.validUntil.toISOString(),
+    };
+
+    if (typeof req.downloadOriginal !== 'undefined') {
+      form.downloadOriginal = String(req.downloadOriginal);
     }
 
-    public async undoCheckout(
-        assetId: string,
-    ): Promise<void> {
-        return await this.post(`/services/undocheckout/${assetId}`);
+    if (typeof req.downloadPreview !== 'undefined') {
+      form.downloadPreview = String(req.downloadPreview);
     }
 
-    public async search(
-        q: string,
-        start: number = 0,
-        num: number = 50,
-        sort: string = 'assetCreated-desc',
-        metadataToReturn: string = 'all',
-        facets: string | null = null,
-        format: string = 'json',
-        appendRequestSecret: boolean = false,
-        returnHighlightedText: boolean = true,
-        returnThumbnailHits: boolean = false,
-        logSearch: boolean = true,
-    ): Promise<SearchResponse> {
-        const form: Record<string, any> = {
-            q,
-            start,
-            num,
-            sort,
-            metadataToReturn,
-            format,
-            appendRequestSecret: String(appendRequestSecret),
-            returnHighlightedText: String(returnHighlightedText),
-            returnThumbnailHits: String(returnThumbnailHits),
-            logSearch: String(logSearch),
-        };
-        if (facets !== null) form.facets = facets;
-        return await this.post('/services/search', form);
+    if (typeof req.requestApproval !== 'undefined') {
+      form.requestApproval = String(req.requestApproval);
     }
 
-    public async move(
-        source: string,
-        target: string,
-        folderReplacePolicy?: string,
-        fileReplacePolicy?: string,
-        filterQuery?: string,
-        flattenFolders?: boolean,
-        asyncFlag?: false,
-    ): Promise<ProcessResponse>;
-
-    public async move(
-        source: string,
-        target: string,
-        folderReplacePolicy?: string,
-        fileReplacePolicy?: string,
-        filterQuery?: string,
-        flattenFolders?: boolean,
-        asyncFlag?: true
-    ): Promise<ProcessStartResponse>;
-
-    public async move(
-        source: string,
-        target: string,
-        folderReplacePolicy: string = AssetsServerBase.FOLDER_REPLACE_POLICY_AUTO_RENAME,
-        fileReplacePolicy: string = AssetsServerBase.FILE_REPLACE_POLICY_AUTO_RENAME,
-        filterQuery: string = '',
-        flattenFolders: boolean = false,
-        asyncFlag: boolean = false
-    ): Promise<ProcessResponse | ProcessStartResponse> {
-        return this.post('/services/move', {
-            source,
-            target,
-            folderReplacePolicy,
-            fileReplacePolicy,
-            filterQuery,
-            flattenFolders: String(flattenFolders),
-            async: String(asyncFlag),
-        });
+    if (typeof req.requestUpload !== 'undefined') {
+      form.requestUpload = String(req.requestUpload);
     }
 
-    public async update(
-        id: string,
-        Filedata: ReadStream | Buffer | null = null,
-        metadata: object | null = null,
-        metadataToReturn: string = 'all',
-        clearCheckoutState: boolean = true,
-        parseMetadataModifications: boolean = true,
-        keepMetadata: boolean = false,
-    ): Promise<void> {
-        const form: Record<string, any> = {
-            id,
-            metadataToReturn,
-            clearCheckoutState: String(clearCheckoutState),
-            parseMetadataModifications: String(parseMetadataModifications),
-            keepMetadata: String(keepMetadata),
-        };
-
-        if (Filedata) {
-            form.Filedata = this.prepareFiledataStream(Filedata);
-        }
-
-        if (metadata) {
-            form.metadata = JSON.stringify(metadata);
-        }
-
-        return this.post('/services/update', form);
+    if (typeof req.watermarked !== 'undefined') {
+      form.watermarked = String(req.watermarked);
     }
 
-    public async updateBulk(
-        q: string,
-        metadata: Record<string, any>,
-        asyncFlag?: false
-    ): Promise<ProcessResponse>;
-
-    public async updateBulk(
-        q: string,
-        metadata: Record<string, any>,
-        asyncFlag?: true
-    ): Promise<ProcessStartResponse>;
-
-    public async updateBulk(
-        q: string,
-        metadata: Record<string, any>,
-        asyncFlag: boolean = false,
-        parseMetadataModifications: boolean = true,
-    ): Promise<ProcessResponse | ProcessStartResponse> {
-        const form: Record<string, any> = {
-            q,
-            metadata: JSON.stringify(metadata),
-            async: String(asyncFlag),
-            parseMetadataModifications: String(parseMetadataModifications),
-        };
-        return this.post('/services/updatebulk', form);
+    if (typeof req.assetIds !== 'undefined' && req.assetIds.length > 0) {
+      form.assetIds = req.assetIds.join(',');
     }
 
-    public async remove(
-        q?: string | null,
-        ids?: string[] | null,
-        folderPath?: string | null,
-        asyncFlag?: false
-    ): Promise<ProcessResponse>;
-
-    public async remove(
-        q?: string | null,
-        ids?: string[] | null,
-        folderPath?: string | null,
-        asyncFlag?: true
-    ): Promise<ProcessStartResponse>;
-
-    public async remove(
-        q: string | null = null,
-        ids: string[] | null = null,
-        folderPath: string | null = null,
-        asyncFlag: boolean = false
-    ): Promise<ProcessResponse | ProcessStartResponse> {
-        const form: Record<string, any> = {
-            async: String(asyncFlag),
-        };
-        if (q) form.q = q;
-        if (ids) form.ids = ids.join(',');
-        if (folderPath) form.folderPath = folderPath;
-
-        return this.post('/services/remove', form);
+    if (typeof req.containerIds !== 'undefined' && req.containerIds.length > 0) {
+      form.containerIds = req.containerIds.join(',');
     }
 
-    public async create(
-        Filedata: ReadStream | Buffer | null = null,
-        metadata: object | null = null,
-        metadataToReturn: string = 'all',
-    ): Promise<SearchResult> {
-        const form: { [k: string]: any } = {metadataToReturn};
-
-        if (Filedata) {
-            form.Filedata = this.prepareFiledataStream(Filedata);
-        }
-
-        if (metadata) {
-            form.metadata = JSON.stringify(metadata);
-        }
-
-        const result = await this.post('/services/create', form);
-        return result as SearchResult;
+    if (typeof req.downloadPresetIds !== 'undefined' && req.downloadPresetIds.length > 0) {
+      form.downloadPresetIds = req.downloadPresetIds.join(',');
     }
 
-    public async createFolder(path: string): Promise<Record<string, string>> {
-        return await this.post('/services/createFolder', {path}) as Record<string, string>;
+    if (typeof req.sort !== 'undefined' && req.sort.length > 0) {
+      form.sort = req.sort.join(',');
     }
 
-    public async createRelation(
-        relationType: string,
-        target1Id: string,
-        target2Id: string
-    ): Promise<void> {
-        return this.post('/services/createRelation', {
-            relationType,
-            target1Id,
-            target2Id,
-        });
+    if (typeof req.description !== 'undefined') {
+      form.description = req.description;
     }
 
-    public async sendEmail(
-        to: string,
-        subject: string,
-        body: null | string = null,
-        htmlBody: null | string = null,
-    ): Promise<void> {
-        const form: Record<string, any> = {
-            to,
-            subject,
-        };
-
-        if (body) form.body = body;
-        if (htmlBody) form.htmlBody = htmlBody;
-        return this.post('/services/notify/email', form, true);
+    if (typeof req.containerId !== 'undefined') {
+      form.containerId = req.containerId;
     }
 
-    public async localization(
-        localeChain: null | string[] = null,
-        ifModifiedSince: Date | null = null,
-        bundle: null | 'web' | 'acm' = null,
-    ): Promise<LocalizationResponse> {
-        const form: { [k: string]: any } = {};
-        if (localeChain) form.localeChain = localeChain.join(',');
-        if (ifModifiedSince) form.ifModifiedSince = ifModifiedSince.toISOString();
-        if (bundle) form.bundle = bundle;
-        return this.post('/services/messages', form);
+    if (typeof req.importFolderPath !== 'undefined') {
+      form.importFolderPath = req.importFolderPath;
     }
 
-    public async logUsage(
-        assetId: string,
-        action: string,
-    ): Promise<void> {
-
-        if (!action.startsWith('CUSTOM_ACTION_')) {
-            action = `CUSTOM_ACTION_${action}`;
-        }
-
-        const form: Record<string, any> = {
-            assetId,
-            action,
-        };
-        return this.post('/services/logUsage', form);
+    if (typeof req.notifyEmail !== 'undefined') {
+      form.notifyEmail = req.notifyEmail;
     }
 
-    public async removeRelation(relationIds: string[]): Promise<ProcessResponse> {
-        return this.post('/services/removeRelation', {
-            relationIds: relationIds.join(','),
-        });
+    return this.post('/services/createAuthKey', form);
+  }
+
+  public async updateAuthKey(req: UpdateAuthKeyRequest): Promise<void> {
+    const form: Record<string, any> = {
+      key: req.key,
+      subject: req.subject,
+      validUntil: req.validUntil.toISOString(),
+    };
+
+    if (typeof req.downloadOriginal !== 'undefined') {
+      form.downloadOriginal = String(req.downloadOriginal);
     }
 
-    public async removeFromCollection(
-        childIds: string[],
-        collectionId: string
-    ): Promise<void> {
-        return this.post('/services/collection/remove', {
-            childIds: childIds.join(','),
-            collectionId,
-        });
+    if (typeof req.downloadPreview !== 'undefined') {
+      form.downloadPreview = String(req.downloadPreview);
     }
 
-    public async addToCollection(
-        childIds: string[],
-        collectionId: string
-    ): Promise<void> {
-        return this.post('/services/collection/add', {
-            childIds: childIds.join(','),
-            collectionId,
-        });
+    if (typeof req.requestApproval !== 'undefined') {
+      form.requestApproval = String(req.requestApproval);
     }
 
-    public async history(
-        id: string,
-        start: number = 0,
-        num: number = 50,
-        detailLevel: 0 | 1 | 2 | 3 | 4 | 5 = 0,
-        actions: string[] = [],
-    ): Promise<HistoryResponse> {
-        const form: Record<string, any> = {
-            id,
-            start,
-            num,
-            detailLevel,
-        };
-
-        if (actions.length > 0) {
-            form.actions = actions.join(',');
-        }
-
-        return await this.post('/services/asset/history', form);
+    if (typeof req.requestUpload !== 'undefined') {
+      form.requestUpload = String(req.requestUpload);
     }
 
-
-    public async promote(
-        assetId: string,
-        version: number
-    ): Promise<void> {
-        return this.post('/services/version/promote', {
-            assetId,
-            version,
-        });
+    if (typeof req.containerIds !== 'undefined' && req.containerIds.length > 0) {
+      form.containerIds = req.containerIds.join(',');
     }
 
-    public async getMetadataReport(
-        format: 'csv' | 'json' = 'csv',
-        assetIds: null | string[] = null,
-        assetPath: null | string = null,
-        fields: null | string[] = null,
-        q?: string,
-    ): Promise<string> {
-        this.ensureTmpDir();
-        const filePath = tmp.tmpNameSync({dir: this.tmpDir!.name});
-        const params: Record<string, string> = {};
-
-        if (assetIds) params.assetIds = assetIds.join(',');
-        if (assetPath) params.assetPath = assetPath;
-        if (fields) params.fields = fields.join(',');
-        if (q) params.q = q;
-
-        const query = new URLSearchParams(params).toString();
-        const endpoint = `/metadata/report.${format}?${query}`;
-        await this.download(endpoint, filePath);
-        return filePath;
+    if (typeof req.downloadPresetIds !== 'undefined' && req.downloadPresetIds.length > 0) {
+      form.downloadPresetIds = req.downloadPresetIds.join(',');
     }
 
-    public async profile(): Promise<ProfileResponse> {
-        return this.post('/services/profile');
+    if (typeof req.sort !== 'undefined' && req.sort.length > 0) {
+      form.sort = req.sort.join(',');
     }
 
-    public async downloadFromId(assetId: string, assetName: string | null = null): Promise<string> {
-        this.ensureTmpDir();
-        const filePath = tmp.tmpNameSync({dir: this.tmpDir!.name});
-
-        try {
-            await this.download(`/file/${assetId}/*/${assetName ?? assetId}?forceDownload=true`, filePath);
-            return filePath;
-        } catch (err) {
-            throw err;
-        }
+    if (typeof req.description !== 'undefined') {
+      form.description = req.description;
     }
 
-    public async downloadPreviewFromId(assetId: string, assetName: string | null = null): Promise<string> {
-        this.ensureTmpDir();
-        const filePath = tmp.tmpNameSync({dir: this.tmpDir!.name});
-
-        try {
-            await this.download(`/preview/${assetId}/*/${assetName ?? assetId}.jpg?forceDownload=true`, filePath);
-            return filePath;
-        } catch (err) {
-            throw err;
-        }
+    if (typeof req.containerId !== 'undefined') {
+      form.containerId = req.containerId;
     }
 
-    private ensureTmpDir(): void {
-        if (!this.tmpDir) {
-            this.tmpDir = tmp.dirSync();
-        }
+    if (typeof req.importFolderPath !== 'undefined') {
+      form.importFolderPath = req.importFolderPath;
     }
 
-    private prepareFiledataStream(filedata: Buffer | ReadStream): ReadStream {
-        if (Buffer.isBuffer(filedata)) {
-            this.ensureTmpDir(); // make sure tmpDir exists
-            const tmpPath = tmp.tmpNameSync({dir: this.tmpDir!.name});
-            writeFileSync(tmpPath, filedata);
-            return createReadStream(tmpPath);
-        }
-
-        // already a ReadStream
-        return filedata;
+    if (typeof req.notifyEmail !== 'undefined') {
+      form.notifyEmail = req.notifyEmail;
     }
+
+    return this.post('/services/updateAuthKey', form);
+  }
+
+  public async revokeAuthKeys(req: RevokeAuthKeysRequest): Promise<void> {
+    const form: Record<string, string> = {
+      keys: req.keys.join(','),
+    };
+
+    return this.post('/services/revokeAuthKeys', form);
+  }
+
+  public async search(req: SearchRequest): Promise<SearchResponse> {
+    const form: Record<string, any> = {
+      q: req.q,
+    };
+
+    if (typeof req.start !== 'undefined') {
+      form.start = req.start;
+    }
+
+    if (typeof req.num !== 'undefined') {
+      form.num = req.num;
+    }
+
+    if (typeof req.sort !== 'undefined') {
+      form.sort = req.sort;
+    }
+
+    if (typeof req.metadataToReturn !== 'undefined') {
+      form.metadataToReturn = req.metadataToReturn;
+    }
+
+    if (typeof req.facets !== 'undefined') {
+      form.facets = req.facets;
+    }
+
+    if (typeof req.format !== 'undefined') {
+      form.format = req.format;
+    }
+
+    if (typeof req.appendRequestSecret !== 'undefined') {
+      form.appendRequestSecret = String(req.appendRequestSecret);
+    }
+
+    if (typeof req.returnHighlightedText !== 'undefined') {
+      form.returnHighlightedText = String(req.returnHighlightedText);
+    }
+
+    if (typeof req.returnThumbnailHits !== 'undefined') {
+      form.returnThumbnailHits = String(req.returnThumbnailHits);
+    }
+
+    if (typeof req.logSearch !== 'undefined') {
+      form.logSearch = String(req.logSearch);
+    }
+
+    return this.post('/services/search', form);
+  }
+
+  public async move(req: MoveRequest & {}): Promise<ProcessResponse>;
+  public async move(req: MoveRequest & { asyncFlag?: false }): Promise<ProcessResponse>;
+  public async move(req: MoveRequest & { asyncFlag: true }): Promise<ProcessStartResponse>;
+  public async move(req: MoveRequest): Promise<ProcessResponse | ProcessStartResponse> {
+    const form: Record<string, string> = {
+      source: req.source,
+      target: req.target,
+    };
+
+    if (typeof req.folderReplacePolicy !== 'undefined') {
+      form.folderReplacePolicy = req.folderReplacePolicy;
+    }
+
+    if (typeof req.fileReplacePolicy !== 'undefined') {
+      form.fileReplacePolicy = req.fileReplacePolicy;
+    }
+
+    if (typeof req.filterQuery !== 'undefined') {
+      form.filterQuery = req.filterQuery;
+    }
+
+    if (typeof req.flattenFolders !== 'undefined') {
+      form.flattenFolders = String(req.flattenFolders);
+    }
+
+    if (typeof req.asyncFlag !== 'undefined') {
+      form.async = String(req.asyncFlag);
+    }
+
+    return this.post('/services/move', form);
+  }
+
+  public async update(req: UpdateRequest): Promise<void> {
+    const form: Record<string, any> = {
+      id: req.id,
+    };
+
+    if (typeof req.metadataToReturn !== 'undefined') {
+      form.metadataToReturn = req.metadataToReturn;
+    }
+
+    if (typeof req.clearCheckoutState !== 'undefined') {
+      form.clearCheckoutState = String(req.clearCheckoutState);
+    }
+
+    if (typeof req.parseMetadataModifications !== 'undefined') {
+      form.parseMetadataModifications = String(req.parseMetadataModifications);
+    }
+
+    if (typeof req.keepMetadata !== 'undefined') {
+      form.keepMetadata = String(req.keepMetadata);
+    }
+
+    if (req.Filedata) {
+      form.Filedata = this.prepareFiledataStream(req.Filedata);
+    }
+
+    if (req.metadata) {
+      form.metadata = JSON.stringify(req.metadata);
+    }
+
+    return this.post('/services/update', form);
+  }
+
+  public async updateBulk(req: UpdateBulkRequest & {}): Promise<ProcessResponse>;
+  public async updateBulk(req: UpdateBulkRequest & { asyncFlag?: false }): Promise<ProcessResponse>;
+  public async updateBulk(req: UpdateBulkRequest & { asyncFlag: true }): Promise<ProcessStartResponse>;
+
+  public async updateBulk(req: UpdateBulkRequest): Promise<ProcessResponse | ProcessStartResponse> {
+    const form: Record<string, string> = {
+      q: req.q,
+      metadata: JSON.stringify(req.metadata),
+    };
+
+    if (typeof req.asyncFlag !== 'undefined') {
+      form.async = String(req.asyncFlag);
+    }
+
+    if (typeof req.parseMetadataModifications !== 'undefined') {
+      form.parseMetadataModifications = String(req.parseMetadataModifications);
+    }
+
+    return this.post('/services/updatebulk', form);
+  }
+
+  public async remove(req: RemoveRequest & {}): Promise<ProcessResponse>;
+  public async remove(req: RemoveRequest & { asyncFlag?: false }): Promise<ProcessResponse>;
+  public async remove(req: RemoveRequest & { asyncFlag: true }): Promise<ProcessStartResponse>;
+
+  public async remove(req: RemoveRequest): Promise<ProcessResponse | ProcessStartResponse> {
+    const form: Record<string, string> = {
+      async: String(req.asyncFlag ?? false),
+    };
+
+    if (typeof req.q !== 'undefined') {
+      form.q = req.q;
+    }
+
+    if (typeof req.ids !== 'undefined' && req.ids.length > 0) {
+      form.ids = req.ids.join(',');
+    }
+
+    if (typeof req.folderPath !== 'undefined') {
+      form.folderPath = req.folderPath;
+    }
+
+    return this.post('/services/remove', form);
+  }
+
+  public async create(req: CreateRequest): Promise<HitResponse> {
+    const form: Record<string, any> = {};
+
+    if (typeof req.metadataToReturn !== 'undefined') {
+      form.metadataToReturn = req.metadataToReturn;
+    }
+
+    if (req.Filedata) {
+      form.Filedata = this.prepareFiledataStream(req.Filedata);
+    }
+
+    if (req.metadata) {
+      form.metadata = JSON.stringify(req.metadata);
+    }
+
+    return await this.post('/services/create', form);
+  }
+
+  public async createFolder(req: CreateFolderRequest): Promise<Record<string, string>> {
+    return await this.post('/services/createFolder', {path: req.path}) as Record<string, string>;
+  }
+
+  public async createRelation(req: CreateRelationRequest): Promise<void> {
+    return this.post('/services/createRelation', {
+      relationType: req.relationType,
+      target1Id: req.target1Id,
+      target2Id: req.target2Id,
+    });
+  }
+
+  public async removeRelation(req: RemoveRelationRequest): Promise<ProcessResponse> {
+    return this.post('/services/removeRelation', {
+      relationIds: req.relationIds.join(','),
+    });
+  }
+
+  public async sendEmail(req: SendEmailRequest): Promise<void> {
+    const form: Record<string, string> = {
+      to: req.to,
+      subject: req.subject,
+    };
+
+    if (typeof req.body !== 'undefined') {
+      form.body = req.body;
+    }
+
+    if (typeof req.htmlBody !== 'undefined') {
+      form.htmlBody = req.htmlBody;
+    }
+
+    return this.post('/services/notify/email', form, true);
+  }
+
+  public async localization(req: LocalizationRequest): Promise<LocalizationResponse> {
+    const form: Record<string, string> = {};
+
+    if (typeof req.localeChain !== 'undefined') {
+      form.localeChain = req.localeChain.join(',');
+    }
+
+    if (typeof req.ifModifiedSince !== 'undefined') {
+      form.ifModifiedSince = req.ifModifiedSince.toISOString();
+    }
+
+    if (typeof req.bundle !== 'undefined') {
+      form.bundle = req.bundle;
+    }
+
+    return this.post('/services/messages', form);
+  }
+
+  public async logUsage(req: LogUsageRequest): Promise<void> {
+    const action = req.action.startsWith('CUSTOM_ACTION_')
+        ? req.action
+        : `CUSTOM_ACTION_${req.action}`;
+
+    const form: Record<string, string> = {
+      assetId: req.assetId,
+      action,
+    };
+
+    return this.post('/services/logUsage', form);
+  }
+
+  public async removeFromCollection(req: CollectionRequest): Promise<void> {
+    return this.post('/services/collection/remove', {
+      childIds: req.childIds.join(','),
+      collectionId: req.collectionId,
+    });
+  }
+
+  public async addToCollection(req: CollectionRequest): Promise<void> {
+    return this.post('/services/collection/add', {
+      childIds: req.childIds.join(','),
+      collectionId: req.collectionId,
+    });
+  }
+
+  public async history(req: HistoryRequest): Promise<HistoryResponse> {
+    const form: Record<string, any> = {
+      id: req.id,
+    };
+
+    if (typeof req.start !== 'undefined') {
+      form.start = req.start;
+    }
+
+    if (typeof req.num !== 'undefined') {
+      form.num = req.num;
+    }
+
+    if (typeof req.detailLevel !== 'undefined') {
+      form.detailLevel = req.detailLevel;
+    }
+
+    if (typeof req.actions !== 'undefined' && req.actions.length > 0) {
+      form.actions = req.actions.join(',');
+    }
+
+    return await this.post('/services/asset/history', form);
+  }
+
+  public async promote(req: PromoteRequest): Promise<void> {
+    return this.post('/services/version/promote', {
+      assetId: req.assetId,
+      version: req.version,
+    });
+  }
+
+  public async getMetadataReport(req: MetadataReportRequest): Promise<string> {
+    this.ensureTmpDir();
+    const filePath = tmp.tmpNameSync({dir: this.tmpDir!.name});
+    const params: Record<string, string> = {};
+
+    if (typeof req.assetIds !== 'undefined' && req.assetIds.length > 0) {
+      params.assetIds = req.assetIds.join(',');
+    }
+
+    if (typeof req.assetPath !== 'undefined') {
+      params.assetPath = req.assetPath;
+    }
+
+    if (typeof req.fields !== 'undefined' && req.fields.length > 0) {
+      params.fields = req.fields.join(',');
+    }
+
+    if (typeof req.q !== 'undefined') {
+      params.q = req.q;
+    }
+
+    const query = new URLSearchParams(params).toString();
+    const format = req.format ?? 'csv';
+    const endpoint = `/metadata/report.${format}?${query}`;
+    await this.download(endpoint, filePath);
+    return filePath;
+  }
+
+  public async profile(): Promise<ProfileResponse> {
+    return this.post('/services/profile');
+  }
+
+  public async downloadFromId(req: DownloadFromIdRequest): Promise<string> {
+    this.ensureTmpDir();
+    const filePath = tmp.tmpNameSync({dir: this.tmpDir!.name});
+
+    const assetName = req.assetName ?? req.assetId;
+    const endpoint = `/file/${req.assetId}/*/${assetName}?forceDownload=true`;
+
+    try {
+      await this.download(endpoint, filePath);
+      return filePath;
+    }
+    catch (err) {
+      throw err;
+    }
+  }
+
+  public async downloadPreviewFromId(req: DownloadFromIdRequest): Promise<string> {
+    this.ensureTmpDir();
+    const filePath = tmp.tmpNameSync({dir: this.tmpDir!.name});
+
+    const assetName = req.assetName ?? req.assetId;
+    const endpoint = `/preview/${req.assetId}/*/${assetName}.jpg?forceDownload=true`;
+
+    try {
+      await this.download(endpoint, filePath);
+      return filePath;
+    }
+    catch (err) {
+      throw err;
+    }
+  }
+
+  private ensureTmpDir(): void {
+    if (!this.tmpDir) {
+      this.tmpDir = tmp.dirSync();
+    }
+  }
+
+  private prepareFiledataStream(filedata: Buffer | ReadStream): ReadStream {
+    if (Buffer.isBuffer(filedata)) {
+      this.ensureTmpDir(); // make sure tmpDir exists
+      const tmpPath = tmp.tmpNameSync({dir: this.tmpDir!.name});
+      writeFileSync(tmpPath, filedata);
+      return createReadStream(tmpPath);
+    }
+
+    // already a ReadStream
+    return filedata;
+  }
 }

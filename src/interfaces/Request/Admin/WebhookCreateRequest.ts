@@ -1,4 +1,4 @@
-export interface WebhookCreatePayload {
+export interface WebhookCreateRequest {
     enabled: boolean;
     name: string;
     url: string;

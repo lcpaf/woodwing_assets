@@ -1,4 +1,4 @@
-export interface BrowseResult {
+export interface BrowseResponse {
     assetPath: string;
     browsable: boolean;
     collection: boolean;

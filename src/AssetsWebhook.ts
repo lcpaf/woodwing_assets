@@ -1,8 +1,8 @@
-import express, {NextFunction, Request, Response} from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import crypto from 'crypto';
 import http from 'http';
-import {WebhookConfig} from './WebhookConfig';
-import {WebhookPayload} from './interfaces/WebhookPayload';
+import { WebhookConfig } from './WebhookConfig';
+import { WebhookPayload } from './interfaces/Payload';
 
 type WebhookSuccessHandler = (request: WebhookPayload) => void;
 type WebhookErrorHandler = (error: string) => void;
@@ -26,17 +26,16 @@ export class AssetsWebhook {
   public static readonly FOLDER_CREATE = 'folder_create';
   public static readonly FOLDER_REMOVE = 'folder_remove';
 
-  constructor(private readonly config: WebhookConfig) {
-  }
+  constructor(private readonly config: WebhookConfig) {}
 
   public listen(successHandler: WebhookSuccessHandler, errorHandler: WebhookErrorHandler): void {
     const app = express();
 
     app.use(
-        express.raw({
-          type: '*/*',
-          limit: '1mb',
-        }),
+      express.raw({
+        type: '*/*',
+        limit: '1mb',
+      }),
     );
 
     app.post('/', (req: Request, res: Response, next: NextFunction) => {
@@ -52,8 +51,7 @@ export class AssetsWebhook {
 
         const payload: WebhookPayload = JSON.parse(rawBody.toString());
         successHandler(payload);
-      }
-      catch (err: any) {
+      } catch (err: any) {
         errorHandler(`Webhook processing error: ${err.message || err}`);
         next(err);
       }
@@ -75,8 +73,7 @@ export class AssetsWebhook {
           this.serverInstance = null;
           resolve();
         });
-      }
-      else {
+      } else {
         resolve();
       }
     });
@@ -96,8 +93,7 @@ export class AssetsWebhook {
 
     try {
       return crypto.timingSafeEqual(bufA, bufB);
-    }
-    catch {
+    } catch {
       return false;
     }
   }
