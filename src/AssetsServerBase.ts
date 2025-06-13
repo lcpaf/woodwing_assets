@@ -1,9 +1,19 @@
-import axios, { AxiosInstance, AxiosRequestConfig, Method } from 'axios';
+import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse, Method } from 'axios';
 import FormData from 'form-data';
 import * as fs from 'fs';
 import https from 'https';
 import { AssetsConfig } from './AssetsConfig';
 import { ApiLoginResponse, TokenResponse } from './interfaces/Response/Service';
+
+export class AssetsError extends Error {
+  constructor(
+    public code: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'AssetsError';
+  }
+}
 
 export class AssetsServerBase {
   protected readonly config: AssetsConfig;
@@ -73,7 +83,7 @@ export class AssetsServerBase {
   // Main wrapper
   private async call(service: string, method: Method, options: AxiosRequestConfig, sendAsJson = true): Promise<any> {
     if (!this.isTokenValid()) {
-      this.tokenResponse = {};
+      this.tokenResponse = { authToken: undefined, authTimestamp: undefined };
     }
 
     if (!this.tokenResponse.authToken) {
@@ -83,15 +93,15 @@ export class AssetsServerBase {
     try {
       return await this.callWithAuth(service, method, options, sendAsJson);
     } catch (err: any) {
-      if (err.response?.status === 401) {
+      if (err instanceof AssetsError && err.code === 401) {
         await this.authenticate();
         return await this.callWithAuth(service, method, options, sendAsJson);
       }
+
       throw err;
     }
   }
 
-  // Request builder with auth
   private async callWithAuth(
     service: string,
     method: Method,
@@ -100,15 +110,14 @@ export class AssetsServerBase {
   ): Promise<any> {
     const config: AxiosRequestConfig = {
       method,
-      url: service,
+      url: service.startsWith('/') ? service.slice(1) : service,
       ...options,
       headers: {
-        ...(options.headers || {}),
+        ...options.headers,
         Authorization: `Bearer ${this.tokenResponse.authToken ?? 'placeholder'}`,
       },
     };
 
-    // Handle multipart/form-data if needed
     if (!sendAsJson && (method === 'POST' || method === 'PUT') && config.data) {
       const formData = new FormData();
       for (const key in config.data) {
@@ -121,14 +130,23 @@ export class AssetsServerBase {
       };
     }
 
-    const response = await this.axiosInstance.request(config);
-    const data = response.data;
+    let response;
+    try {
+      response = await this.axiosInstance.request(config);
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        const code = err.response?.status ?? 500;
+        throw new AssetsError(code, err.message || 'HTTP request failed');
+      }
+      throw new AssetsError(500, err instanceof Error ? err.message : 'Unexpected error in callWithAuth');
+    }
 
+    const data = response.data;
+    // Check for soft error outside the try
     if (data && typeof data === 'object' && 'errorcode' in data) {
-      const error = new Error(data.message || 'Unknown error from Assets Server');
-      (error as any).errorcode = data.errorcode;
-      (error as any).errorname = data.errorname;
-      throw error;
+      const code = Number(data.errorcode);
+      const isValidHttp = Number.isInteger(code) && code >= 100 && code <= 599;
+      throw new AssetsError(isValidHttp ? code : 500, data.message || 'Unknown error from Assets Server');
     }
 
     return data;
@@ -156,7 +174,7 @@ export class AssetsServerBase {
   private async downloadFile(service: string, filePath: string): Promise<string> {
     // Ensure authentication is valid
     if (!this.isTokenValid()) {
-      this.tokenResponse = {};
+      this.tokenResponse = { authToken: undefined, authTimestamp: undefined };
     }
 
     if (!this.tokenResponse.authToken) {
@@ -166,7 +184,7 @@ export class AssetsServerBase {
     try {
       return await this.downloadFileWithAuth(service, filePath);
     } catch (err: any) {
-      if (err.response?.status === 401) {
+      if (err instanceof AssetsError && err.code === 401) {
         await this.authenticate();
         return await this.downloadFileWithAuth(service, filePath);
       }
