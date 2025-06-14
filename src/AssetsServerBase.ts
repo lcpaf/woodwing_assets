@@ -135,9 +135,18 @@ export class AssetsServerBase {
       response = await this.axiosInstance.request(config);
     } catch (err) {
       if (axios.isAxiosError(err)) {
-        const code = err.response?.status ?? 500;
-        throw new AssetsError(code, err.message || 'HTTP request failed');
+        const status = err.response?.status ?? 500;
+        const data = err.response?.data;
+
+        // Check if response data includes errorcode/message like a soft error
+        if (data && typeof data === 'object' && 'errorcode' in data && typeof data.errorcode === 'number') {
+          const message = data.message || 'Unknown error from Assets Server';
+          throw new AssetsError(data.errorcode, message);
+        }
+
+        throw new AssetsError(status, err.message || 'HTTP request failed');
       }
+      // Non-Axios errors
       throw new AssetsError(500, err instanceof Error ? err.message : 'Unexpected error in callWithAuth');
     }
 
